@@ -363,8 +363,19 @@ jobs:
             pkg-config
 
       # -----------------------------------------------------------------------
-      # STEP 6: Build the Snap package
-      # ÉTAPE 6: Construire le paquet Snap
+      # STEP 6: Install build snaps
+      # ÉTAPE 6: Installer les snaps de build
+      # -----------------------------------------------------------------------
+      # The gnome extension requires the gnome-46-2404 SDK snap.
+      # L'extension gnome nécessite le snap SDK gnome-46-2404.
+      # -----------------------------------------------------------------------
+      - name: Install build snaps
+        if: steps.check.outputs.should_build == 'true'
+        run: sudo snap install gnome-46-2404-sdk --channel=latest/stable
+
+      # -----------------------------------------------------------------------
+      # STEP 7: Build the Snap package
+      # ÉTAPE 7: Construire le paquet Snap
       # -----------------------------------------------------------------------
       # This is where the magic happens! Snapcraft reads snapcraft.yaml
       # and builds the .snap file.
@@ -396,8 +407,8 @@ jobs:
           echo "snap_file=$(ls *.snap)" >> $GITHUB_OUTPUT
 
       # -----------------------------------------------------------------------
-      # STEP 7: Upload build artifact
-      # ÉTAPE 7: Uploader l'artifact de build
+      # STEP 8: Upload build artifact
+      # ÉTAPE 8: Uploader l'artifact de build
       # -----------------------------------------------------------------------
       # Artifacts are files preserved after the workflow completes.
       # Les artifacts sont des fichiers préservés après la fin du workflow.
@@ -422,8 +433,8 @@ jobs:
           retention-days: 30
 
       # -----------------------------------------------------------------------
-      # STEP 8: Publish to Snap Store
-      # ÉTAPE 8: Publier sur le Snap Store
+      # STEP 9: Publish to Snap Store
+      # ÉTAPE 9: Publier sur le Snap Store
       # -----------------------------------------------------------------------
       # Uploads the .snap file to the Snap Store for distribution
       # Upload le fichier .snap sur le Snap Store pour distribution
@@ -452,8 +463,8 @@ jobs:
         continue-on-error: true
 
       # -----------------------------------------------------------------------
-      # STEP 9: Update version tracking variable
-      # ÉTAPE 9: Mettre à jour la variable de suivi de version
+      # STEP 10: Update version tracking variable
+      # ÉTAPE 10: Mettre à jour la variable de suivi de version
       # -----------------------------------------------------------------------
       # After successful build, update our tracking variable so we don't
       # rebuild the same version next time.
@@ -562,6 +573,10 @@ jobs:
             libpulse-dev \
             libudev-dev \
             pkg-config
+
+      - name: Install build snaps
+        if: steps.check.outputs.should_build == 'true'
+        run: sudo snap install gnome-46-2404-sdk --channel=latest/stable
 
       - name: Build snap
         if: steps.check.outputs.should_build == 'true'
