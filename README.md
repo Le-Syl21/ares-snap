@@ -19,10 +19,11 @@ This repository automatically builds and publishes [Snap packages](https://snapc
 ares-snap/
 ├── .github/
 │   └── workflows/
-│       └── build.yml      # GitHub Actions workflow
+│       └── build.yml            # GitHub Actions workflow
 ├── snap/
-│   └── snapcraft.yaml     # Snap package definition
-├── deps.json              # Prebuilt dependencies config
+│   └── snapcraft.yaml           # Snap package definition
+├── .last_built_tags.json        # Version tracking (auto-updated by CI)
+├── deps.json                    # Prebuilt dependencies config
 └── README.md
 ```
 
@@ -31,6 +32,7 @@ ares-snap/
 | `build.yml` | Orchestrates the entire build process: version detection, source cloning, multi-architecture building, and publishing to the Snap Store. |
 | `snapcraft.yaml` | Defines the Snap package itself: metadata, permissions, dependencies, build instructions, and desktop integration. The version field is a placeholder that gets replaced by the CI. |
 | `deps.json` | Configuration for prebuilt dependencies (SDL, librashader, etc.) downloaded from [ares-deps](https://github.com/ares-emulator/ares-deps). Includes version and SHA256 hashes for integrity verification. |
+| `.last_built_tags.json` | Tracks the last successfully built version for each architecture. Auto-committed by the CI after each build. |
 
 ### 🔄 How It Works
 
@@ -38,35 +40,44 @@ ares-snap/
 flowchart TB
     A[⏰ Trigger<br/>Daily 6h UTC or manual]
 
-    A --> B1{amd64:<br/>new version?}
-    A --> B2{arm64:<br/>new version?}
+    A --> B[🔍 Check<br/>Read .last_built_tags.json<br/>Compare with upstream]
 
-    B1 -->|No| Z1[💤 Skip]
-    B1 -->|Yes| C1[📦 Build snap]
-    C1 --> D1[🚀 Publish + Update<br/>LAST_BUILT_TAG_AMD64]
+    B --> C1{amd64:<br/>new version?}
+    B --> C2{arm64:<br/>new version?}
 
-    B2 -->|No| Z2[💤 Skip]
-    B2 -->|Yes| C2[📦 Build snap]
-    C2 --> D2[🚀 Publish + Update<br/>LAST_BUILT_TAG_ARM64]
+    C1 -->|No| Z1[💤 Skip]
+    C1 -->|Yes| D1[📦 Build amd64]
+    D1 --> E1[🚀 Publish]
+
+    C2 -->|No| Z2[💤 Skip]
+    C2 -->|Yes| D2[📦 Build arm64]
+    D2 --> E2[🚀 Publish]
+
+    E1 --> F[📝 Update .last_built_tags.json]
+    E2 --> F
 ```
 
 **Step by step:**
 
 1. **Trigger** — The workflow runs daily at 6:00 UTC, or manually via the Actions tab
-2. **Version check** — Each job independently compares the latest upstream tag against its own variable
-3. **Build** — If needed, clones source, downloads prebuilt deps, and builds natively
+2. **Version check** — A single job queries upstream once and reads `.last_built_tags.json` to decide which architectures need building
+3. **Build** — Each architecture builds in parallel on its native runner (clones source, downloads prebuilt deps, builds natively)
 4. **Publish** — Uploads to the Snap Store (fails gracefully if name not yet registered)
-5. **Track** — Each job updates its own variable (`LAST_BUILT_TAG_AMD64` or `LAST_BUILT_TAG_ARM64`)
+5. **Track** — A final job commits the updated `.last_built_tags.json` with the new tag for each architecture that built successfully
 
 ### ⚙️ Configuration Explained
 
-#### GitHub Repository Variables: `LAST_BUILT_TAG_AMD64` and `LAST_BUILT_TAG_ARM64`
+#### Tracking File: `.last_built_tags.json`
 
-**What:** Repository variables that store the last successfully built version tag for each architecture (e.g., `v147`).
+**What:** A JSON file at the repo root that stores the last successfully built version tag for each architecture (e.g., `{"amd64": "v147", "arm64": "v147"}`).
 
-**Why:** GitHub Actions workflows are stateless — they don't remember anything between runs. To avoid rebuilding the same version every day, we need to persist the last built tag somewhere. Using separate variables per architecture allows each build job to update its own tracker independently, which works better with GitHub's permission model.
+**Why:** GitHub Actions workflows are stateless — they don't remember anything between runs. To avoid rebuilding the same version every day, we need to persist the last built tag somewhere. We use a committed file rather than repository variables because GitHub's `GITHUB_TOKEN` cannot write repository variables (HTTP 403 error). A committed file works with the standard `GITHUB_TOKEN` and `contents: write` permission — no Personal Access Token needed!
 
-**Setup:** Go to **Settings > Secrets and variables > Actions > Variables** and create both `LAST_BUILT_TAG_AMD64` and `LAST_BUILT_TAG_ARM64`. Set their initial values to any tag that is *older* than the current release (so the first run triggers a build). For example, if current release is `v147`, you could use `v1` or `v0`.
+**Setup:** Create `.last_built_tags.json` at the repo root with initial content:
+```json
+{"amd64": "", "arm64": ""}
+```
+The first workflow run will detect that both architectures need building and will automatically update the file after a successful build.
 
 #### GitHub Secret: `SNAPCRAFT_TOKEN`
 
@@ -98,9 +109,7 @@ Then add this as a secret named `SNAPCRAFT_TOKEN` in **Settings > Secrets and va
 
 **What:** In **Settings > Actions > General > Workflow permissions**, select "Read and write permissions".
 
-**Why:** By default, the `GITHUB_TOKEN` provided to workflows is read-only. But we need to *write* to update the `LAST_BUILT_TAG_*` variables after each successful build. Without write permission, the `gh variable set` command would fail.
-
-**Note:** The workflow also explicitly declares `variables: write` permission in addition to the global setting.
+**Why:** By default, the `GITHUB_TOKEN` provided to workflows is read-only. We need write access so the workflow can commit the updated `.last_built_tags.json` tracking file after each successful build. The workflow declares `contents: write` permission explicitly.
 
 ### 🏗️ Native Multi-Architecture Build
 
@@ -141,9 +150,9 @@ This repository is designed as a template. To package a different application:
    - Update desktop integration (icon, .desktop file)
 
 4. **Setup your credentials:**
-   - Create `LAST_BUILT_TAG_AMD64` and `LAST_BUILT_TAG_ARM64` variables (initial value: any old tag)
+   - Create `.last_built_tags.json` at repo root (initial content: `{"amd64": "", "arm64": ""}`)
    - Generate and add your `SNAPCRAFT_TOKEN`
-   - Enable workflow write permissions
+   - Enable workflow "Read and write permissions" in Settings > Actions > General
    - Register your Snap name on [snapcraft.io](https://snapcraft.io/register)
 
 ---
@@ -163,10 +172,11 @@ Ce dépôt construit et publie automatiquement des [paquets Snap](https://snapcr
 ares-snap/
 ├── .github/
 │   └── workflows/
-│       └── build.yml      # Workflow GitHub Actions
+│       └── build.yml            # Workflow GitHub Actions
 ├── snap/
-│   └── snapcraft.yaml     # Définition du paquet Snap
-├── deps.json              # Config des dépendances précompilées
+│   └── snapcraft.yaml           # Définition du paquet Snap
+├── .last_built_tags.json        # Suivi de version (auto-MAJ par le CI)
+├── deps.json                    # Config des dépendances précompilées
 └── README.md
 ```
 
@@ -175,6 +185,7 @@ ares-snap/
 | `build.yml` | Orchestre tout le processus de build : détection de version, clonage du source, build multi-architecture, et publication sur le Snap Store. |
 | `snapcraft.yaml` | Définit le paquet Snap lui-même : métadonnées, permissions, dépendances, instructions de build et intégration desktop. Le champ version est un placeholder remplacé par le CI. |
 | `deps.json` | Configuration des dépendances précompilées (SDL, librashader, etc.) téléchargées depuis [ares-deps](https://github.com/ares-emulator/ares-deps). Inclut la version et les hashs SHA256 pour la vérification d'intégrité. |
+| `.last_built_tags.json` | Suit la dernière version buildée avec succès pour chaque architecture. Auto-committé par le CI après chaque build. |
 
 ### 🔄 Comment ça marche
 
@@ -182,35 +193,44 @@ ares-snap/
 flowchart TB
     A[⏰ Déclenchement<br/>Quotidien 6h UTC ou manuel]
 
-    A --> B1{amd64:<br/>nouvelle version ?}
-    A --> B2{arm64:<br/>nouvelle version ?}
+    A --> B[🔍 Vérification<br/>Lit .last_built_tags.json<br/>Compare avec l'upstream]
 
-    B1 -->|Non| Z1[💤 Passe]
-    B1 -->|Oui| C1[📦 Build snap]
-    C1 --> D1[🚀 Publie + MAJ<br/>LAST_BUILT_TAG_AMD64]
+    B --> C1{amd64:<br/>nouvelle version ?}
+    B --> C2{arm64:<br/>nouvelle version ?}
 
-    B2 -->|Non| Z2[💤 Passe]
-    B2 -->|Oui| C2[📦 Build snap]
-    C2 --> D2[🚀 Publie + MAJ<br/>LAST_BUILT_TAG_ARM64]
+    C1 -->|Non| Z1[💤 Passe]
+    C1 -->|Oui| D1[📦 Build amd64]
+    D1 --> E1[🚀 Publie]
+
+    C2 -->|Non| Z2[💤 Passe]
+    C2 -->|Oui| D2[📦 Build arm64]
+    D2 --> E2[🚀 Publie]
+
+    E1 --> F[📝 MAJ .last_built_tags.json]
+    E2 --> F
 ```
 
 **Étape par étape :**
 
 1. **Déclenchement** — Le workflow s'exécute tous les jours à 6h UTC, ou manuellement via l'onglet Actions
-2. **Vérification de version** — Chaque job compare indépendamment le dernier tag upstream avec sa propre variable
-3. **Build** — Si besoin, clone le source, télécharge les deps précompilées, et build nativement
+2. **Vérification de version** — Un seul job interroge l'upstream une fois et lit `.last_built_tags.json` pour décider quelles architectures doivent être buildées
+3. **Build** — Chaque architecture build en parallèle sur son runner natif (clone le source, télécharge les deps précompilées, build nativement)
 4. **Publication** — Upload sur le Snap Store (échoue gracieusement si le nom n'est pas encore enregistré)
-5. **Suivi** — Chaque job met à jour sa propre variable (`LAST_BUILT_TAG_AMD64` ou `LAST_BUILT_TAG_ARM64`)
+5. **Suivi** — Un job final committe le fichier `.last_built_tags.json` mis à jour avec le nouveau tag pour chaque architecture buildée avec succès
 
 ### ⚙️ Configuration expliquée
 
-#### Variables de dépôt GitHub : `LAST_BUILT_TAG_AMD64` et `LAST_BUILT_TAG_ARM64`
+#### Fichier de suivi : `.last_built_tags.json`
 
-**Quoi :** Des variables de dépôt qui stockent le dernier tag de version buildé avec succès pour chaque architecture (ex: `v147`).
+**Quoi :** Un fichier JSON à la racine du dépôt qui stocke le dernier tag de version buildé avec succès pour chaque architecture (ex: `{"amd64": "v147", "arm64": "v147"}`).
 
-**Pourquoi :** Les workflows GitHub Actions sont sans état — ils ne se souviennent de rien entre les exécutions. Pour éviter de rebuilder la même version tous les jours, on doit persister le dernier tag buildé quelque part. Utiliser des variables séparées par architecture permet à chaque job de build de mettre à jour son propre tracker indépendamment, ce qui fonctionne mieux avec le modèle de permissions de GitHub.
+**Pourquoi :** Les workflows GitHub Actions sont sans état — ils ne se souviennent de rien entre les exécutions. Pour éviter de rebuilder la même version tous les jours, on doit persister le dernier tag buildé quelque part. On utilise un fichier committé plutôt que des variables de dépôt car le `GITHUB_TOKEN` de GitHub ne peut pas écrire les variables de dépôt (erreur HTTP 403). Un fichier committé fonctionne avec le `GITHUB_TOKEN` standard et la permission `contents: write` — pas besoin de Personal Access Token !
 
-**Configuration :** Allez dans **Settings > Secrets and variables > Actions > Variables** et créez `LAST_BUILT_TAG_AMD64` et `LAST_BUILT_TAG_ARM64`. Définissez leurs valeurs initiales à n'importe quel tag *plus ancien* que la release actuelle (pour que la première exécution déclenche un build). Par exemple, si la release actuelle est `v147`, vous pouvez utiliser `v1` ou `v0`.
+**Configuration :** Créez `.last_built_tags.json` à la racine du dépôt avec le contenu initial :
+```json
+{"amd64": "", "arm64": ""}
+```
+La première exécution détectera que les deux architectures doivent être buildées et mettra automatiquement à jour le fichier après un build réussi.
 
 #### Secret GitHub : `SNAPCRAFT_TOKEN`
 
@@ -242,9 +262,7 @@ Puis ajoutez ceci comme secret nommé `SNAPCRAFT_TOKEN` dans **Settings > Secret
 
 **Quoi :** Dans **Settings > Actions > General > Workflow permissions**, sélectionnez "Read and write permissions".
 
-**Pourquoi :** Par défaut, le `GITHUB_TOKEN` fourni aux workflows est en lecture seule. Mais on a besoin d'*écrire* pour mettre à jour les variables `LAST_BUILT_TAG_*` après chaque build réussi. Sans permission d'écriture, la commande `gh variable set` échouerait.
-
-**Note :** Le workflow déclare aussi explicitement la permission `variables: write` en plus du paramètre global.
+**Pourquoi :** Par défaut, le `GITHUB_TOKEN` fourni aux workflows est en lecture seule. On a besoin de l'accès en écriture pour que le workflow puisse committer le fichier de suivi `.last_built_tags.json` mis à jour après chaque build réussi. Le workflow déclare explicitement la permission `contents: write`.
 
 ### 🏗️ Build natif multi-architecture
 
@@ -285,9 +303,9 @@ Ce dépôt est conçu comme un template. Pour packager une autre application :
    - Mettez à jour l'intégration desktop (icône, fichier .desktop)
 
 4. **Configurez vos identifiants :**
-   - Créez les variables `LAST_BUILT_TAG_AMD64` et `LAST_BUILT_TAG_ARM64` (valeur initiale : n'importe quel ancien tag)
+   - Créez `.last_built_tags.json` à la racine du dépôt (contenu initial : `{"amd64": "", "arm64": ""}`)
    - Générez et ajoutez votre `SNAPCRAFT_TOKEN`
-   - Activez les permissions d'écriture du workflow
+   - Activez les permissions "Read and write" dans Settings > Actions > General
    - Enregistrez le nom de votre Snap sur [snapcraft.io](https://snapcraft.io/register)
 
 ---
