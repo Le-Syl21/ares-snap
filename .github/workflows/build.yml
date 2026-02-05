@@ -10,125 +10,40 @@
 # nouvelle version d'Ares. Build natif pour amd64 et arm64.
 #
 # =============================================================================
-# EDUCATIONAL PURPOSE / BUT PÉDAGOGIQUE
-# =============================================================================
-# This repository is designed as a learning resource for packaging any
-# application as a Snap. Every section is commented to explain not just
-# WHAT it does, but WHY it's configured that way.
-#
-# Ce dépôt est conçu comme ressource pédagogique pour packager n'importe
-# quelle application en Snap. Chaque section est commentée pour expliquer
-# non seulement CE QUE ça fait, mais POURQUOI c'est configuré ainsi.
-#
-# =============================================================================
 # REQUIRED SETUP / CONFIGURATION REQUISE
 # =============================================================================
-# Before this workflow can run, you need to configure:
-# Avant que ce workflow puisse s'exécuter, vous devez configurer :
 #
 # 1. TRACKING FILE / FICHIER DE SUIVI
-#    Create .last_built_tags.json at repo root with initial content:
-#    Créer .last_built_tags.json à la racine du dépôt avec le contenu initial :
+#    Create .last_built_tags.json at repo root:
+#    Créer .last_built_tags.json à la racine du dépôt :
 #      {"amd64": "", "arm64": ""}
 #
-#    WHY A FILE INSTEAD OF REPOSITORY VARIABLES? / POURQUOI UN FICHIER ?
-#    GitHub's GITHUB_TOKEN cannot write repository variables (403 error).
-#    A committed file works with the standard GITHUB_TOKEN and contents: write.
-#    No PAT needed! / Pas besoin de PAT !
-#
-#    Le GITHUB_TOKEN de GitHub ne peut pas écrire les variables de dépôt (erreur 403).
-#    Un fichier committé fonctionne avec le GITHUB_TOKEN standard et contents: write.
-#
 # 2. REPOSITORY SECRET (Settings > Secrets and variables > Actions > Secrets)
-#    SECRET DE DÉPÔT
-#    - SNAPCRAFT_TOKEN : Authentication token for Snap Store publishing
-#                        Token d'authentification pour publier sur le Snap Store
-#      HOW TO GET IT / COMMENT L'OBTENIR :
-#        $ sudo snap install snapcraft --classic
-#        $ snapcraft login
-#        $ snapcraft export-login snapcraft.login
-#        $ cat snapcraft.login  # Copy this content to GitHub secret
-#        $ rm snapcraft.login   # Delete for security
+#    - SNAPCRAFT_TOKEN : from "snapcraft export-login"
 #
 # 3. REPOSITORY PERMISSIONS (Settings > Actions > General > Workflow permissions)
-#    PERMISSIONS DU DÉPÔT
 #    - Select "Read and write permissions"
-#      Sélectionner "Read and write permissions"
 # =============================================================================
 
 name: Build Ares Snap
 
-# -----------------------------------------------------------------------------
-# TRIGGERS / DÉCLENCHEURS
-# -----------------------------------------------------------------------------
 on:
-  # SCHEDULED TRIGGER / DÉCLENCHEUR PLANIFIÉ
-  # Cron syntax: minute hour day-of-month month day-of-week
-  #
-  # WHY 6:00 UTC? / POURQUOI 6H UTC ?
-  # Most releases happen during US/EU business hours, so checking in the
-  # morning UTC catches overnight releases without running too frequently.
   schedule:
     - cron: '0 6 * * *'
-
-  # MANUAL TRIGGER / DÉCLENCHEUR MANUEL
   workflow_dispatch:
     inputs:
       force_build:
-        description: 'Force build (bypass version check) / Forcer le build'
+        description: 'Force build (bypass version check)'
         required: false
         default: false
         type: boolean
 
-# -----------------------------------------------------------------------------
-# PERMISSIONS
-# -----------------------------------------------------------------------------
-# contents: write is needed to commit the updated tracking file.
-# contents: write est nécessaire pour committer le fichier de suivi mis à jour.
-#
-# SECURITY TIP / CONSEIL SÉCURITÉ :
-# Always use minimum required permissions (principle of least privilege).
-# Toujours utiliser le minimum de permissions nécessaires (principe du moindre privilège).
-# -----------------------------------------------------------------------------
 permissions:
   contents: write
 
-# -----------------------------------------------------------------------------
-# JOBS OVERVIEW / VUE D'ENSEMBLE DES JOBS
-# -----------------------------------------------------------------------------
-#
-#   ┌─────────┐
-#   │  check   │  Single upstream query + read tracking file
-#   └────┬─────┘
-#        │ outputs: latest_tag, build_amd64, build_arm64
-#        ├──────────────────┐
-#   ┌────▼─────┐      ┌────▼─────┐
-#   │  build   │      │  build   │  Matrix strategy: parallel native builds
-#   │  amd64   │      │  arm64   │
-#   └────┬─────┘      └────┬─────┘
-#        │                  │
-#        └────────┬─────────┘
-#           ┌─────▼──────┐
-#           │ update-tags │  Commit results (only successful arches)
-#           └────────────┘
-#
-# WHY THIS STRUCTURE? / POURQUOI CETTE STRUCTURE ?
-# - Single check: upstream is queried once, not twice
-#   Vérification unique : l'upstream est interrogé une seule fois
-# - Matrix build: less code duplication, same behavior
-#   Build en matrice : moins de duplication, même comportement
-# - Separate update job: avoids race conditions between parallel jobs
-#   Job de MAJ séparé : évite les race conditions entre jobs parallèles
-# - [skip ci] in commit message: prevents the push from re-triggering
-#   [skip ci] dans le message de commit : empêche le push de re-déclencher
-# -----------------------------------------------------------------------------
 jobs:
   # ===========================================================================
   # JOB 1: CHECK FOR NEW RELEASE
-  # JOB 1 : VÉRIFIER UNE NOUVELLE RELEASE
-  # ===========================================================================
-  # Queries upstream once and decides which architectures need building.
-  # Interroge l'upstream une seule fois et décide quelles architectures builder.
   # ===========================================================================
   check:
     runs-on: ubuntu-latest
@@ -139,29 +54,17 @@ jobs:
       build_arm64: ${{ steps.check.outputs.build_arm64 }}
 
     steps:
-      # We need our repo to read .last_built_tags.json
-      # On a besoin de notre repo pour lire .last_built_tags.json
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Check for new version
         id: check
         run: |
-          # Fetch all release tags from upstream (vXXX pattern only)
-          # Récupère tous les tags de release depuis l'upstream (pattern vXXX uniquement)
-          #
-          # Command breakdown / Décomposition de la commande :
-          #   git ls-remote --tags  : List remote tags without cloning
-          #   cut -d/ -f3           : Extract tag name from refs/tags/v123
-          #   sort -V               : Version sort (v2 < v10, not alphabetical)
-          #   tail -1               : Get the last (highest) version
           LATEST_TAG=$(git ls-remote --tags https://github.com/ares-emulator/ares.git 'refs/tags/v*' \
             | cut -d/ -f3 \
             | sort -V \
             | tail -1)
 
-          # Read tracking file / Lire le fichier de suivi
-          # jq -r '.key // ""' : Extract value, default to empty string if missing
           if [ -f .last_built_tags.json ]; then
             LAST_AMD64=$(jq -r '.amd64 // ""' .last_built_tags.json)
             LAST_ARM64=$(jq -r '.arm64 // ""' .last_built_tags.json)
@@ -176,7 +79,6 @@ jobs:
           echo "Last built arm64   : $LAST_ARM64"
           echo "=========================================="
 
-          # Decision logic / Logique de décision
           if [ "${{ inputs.force_build }}" == "true" ]; then
             echo "⚡ FORCE BUILD REQUESTED"
             BUILD_AMD64=true
@@ -186,56 +88,18 @@ jobs:
             [ "$LATEST_TAG" != "$LAST_ARM64" ] && BUILD_ARM64=true || BUILD_ARM64=false
           fi
 
-          [ "$BUILD_AMD64" == "true" ] && echo "🆕 amd64: needs build" || echo "✓ amd64: up to date"
-          [ "$BUILD_ARM64" == "true" ] && echo "🆕 arm64: needs build" || echo "✓ arm64: up to date"
-
-          # Export outputs for downstream jobs
-          # Exporter les outputs pour les jobs suivants
           echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
           echo "version=${LATEST_TAG#v}" >> $GITHUB_OUTPUT
           echo "build_amd64=$BUILD_AMD64" >> $GITHUB_OUTPUT
           echo "build_arm64=$BUILD_ARM64" >> $GITHUB_OUTPUT
 
   # ===========================================================================
-  # JOB 2: BUILD SNAP PACKAGES (MATRIX)
-  # JOB 2 : CONSTRUIRE LES PAQUETS SNAP (MATRICE)
+  # JOB 2: BUILD AMD64
   # ===========================================================================
-  # Uses a matrix strategy to avoid duplicating the entire build job.
-  # Each architecture runs on its native runner for reliable builds.
-  #
-  # Utilise une stratégie matrice pour éviter de dupliquer tout le job de build.
-  # Chaque architecture tourne sur son runner natif pour des builds fiables.
-  #
-  # MATRIX STRATEGY / STRATÉGIE MATRICE :
-  # Instead of writing two nearly identical jobs, we define a matrix of
-  # parameters and GitHub Actions creates one job instance per combination.
-  # The 'include' syntax lets us set custom values per matrix entry.
-  #
-  # Au lieu d'écrire deux jobs quasi identiques, on définit une matrice de
-  # paramètres et GitHub Actions crée une instance par combinaison.
-  # La syntaxe 'include' permet de définir des valeurs custom par entrée.
-  # ===========================================================================
-  build:
+  build-amd64:
     needs: check
-    strategy:
-      # fail-fast: false ensures one arch failing doesn't cancel the other
-      # fail-fast: false assure qu'un échec sur une arch n'annule pas l'autre
-      fail-fast: false
-      matrix:
-        include:
-          - arch: amd64
-            runner: ubuntu-latest
-            should_build: ${{ needs.check.outputs.build_amd64 }}
-          - arch: arm64
-            runner: ubuntu-24.04-arm
-            should_build: ${{ needs.check.outputs.build_arm64 }}
-
-    # CONDITIONAL EXECUTION / EXÉCUTION CONDITIONNELLE
-    # Skip the entire job if this arch doesn't need building.
-    # This saves runner allocation time (especially for ARM runners).
-    if: ${{ matrix.should_build == 'true' }}
-
-    runs-on: ${{ matrix.runner }}
+    if: needs.check.outputs.build_amd64 == 'true'
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout config
@@ -245,29 +109,17 @@ jobs:
         run: |
           TAG=${{ needs.check.outputs.latest_tag }}
           VERSION=${{ needs.check.outputs.version }}
-
-          echo "📦 Cloning ares $TAG (${{ matrix.arch }})..."
-
-          # --depth 1 : Shallow clone (only latest commit, saves time/bandwidth)
-          # --branch  : Checkout specific tag instead of default branch
+          echo "📦 Cloning ares $TAG (amd64)..."
           git clone --depth 1 --branch $TAG \
             https://github.com/ares-emulator/ares.git ares-src
-
-          # Overlay our snap configuration / Superposer notre config snap
           cp -r snap/ ares-src/
           cp deps.json ares-src/
-
-          # Inject version / Injecter la version
           sed -i "s/^version: .*/version: '$VERSION'/" ares-src/snap/snapcraft.yaml
           echo "✓ Version set to $VERSION"
 
-      # Snapcraft is the tool that builds Snap packages
-      # --classic : Allows snapcraft full system access (needed for building)
       - name: Install snapcraft
         run: sudo snap install snapcraft --classic
 
-      # LXD provides clean container environments for snapcraft builds.
-      # Snapcraft automatically installs all build-packages and build-snaps inside.
       - name: Setup LXD
         uses: canonical/setup-lxd@main
 
@@ -278,60 +130,83 @@ jobs:
           snapcraft pack
           echo "snap_file=$(ls *.snap)" >> $GITHUB_OUTPUT
 
-      # ARTIFACTS / ARTEFACTS
-      # Preserved after workflow completes. Useful for manual testing
-      # or downloading if Snap Store publishing fails.
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ares-${{ needs.check.outputs.latest_tag }}-${{ matrix.arch }}
+          name: ares-${{ needs.check.outputs.latest_tag }}-amd64
           path: ares-src/${{ steps.build.outputs.snap_file }}
           retention-days: 30
 
-      # SNAP STORE CHANNELS / CANAUX SNAP STORE :
-      #   stable > candidate > beta > edge
-      #
-      # continue-on-error: if publishing fails (e.g., name not registered),
-      # the build artifact is still available for manual upload later.
       - name: Publish to Snap Store
         env:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_TOKEN }}
         run: |
-          echo "🚀 Publishing to Snap Store (${{ matrix.arch }})..."
+          echo "🚀 Publishing to Snap Store (amd64)..."
           snapcraft upload ares-src/${{ steps.build.outputs.snap_file }} --release=stable
         continue-on-error: true
 
   # ===========================================================================
-  # JOB 3: UPDATE TRACKING FILE
-  # JOB 3 : METTRE À JOUR LE FICHIER DE SUIVI
+  # JOB 3: BUILD ARM64
   # ===========================================================================
-  # Runs after both builds complete. Updates .last_built_tags.json only for
+  build-arm64:
+    needs: check
+    if: needs.check.outputs.build_arm64 == 'true'
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - name: Checkout config
+        uses: actions/checkout@v4
+
+      - name: Clone ares source
+        run: |
+          TAG=${{ needs.check.outputs.latest_tag }}
+          VERSION=${{ needs.check.outputs.version }}
+          echo "📦 Cloning ares $TAG (arm64)..."
+          git clone --depth 1 --branch $TAG \
+            https://github.com/ares-emulator/ares.git ares-src
+          cp -r snap/ ares-src/
+          cp deps.json ares-src/
+          sed -i "s/^version: .*/version: '$VERSION'/" ares-src/snap/snapcraft.yaml
+          echo "✓ Version set to $VERSION"
+
+      - name: Install snapcraft
+        run: sudo snap install snapcraft --classic
+
+      - name: Setup LXD
+        uses: canonical/setup-lxd@main
+
+      - name: Build snap
+        id: build
+        run: |
+          cd ares-src
+          snapcraft pack
+          echo "snap_file=$(ls *.snap)" >> $GITHUB_OUTPUT
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ares-${{ needs.check.outputs.latest_tag }}-arm64
+          path: ares-src/${{ steps.build.outputs.snap_file }}
+          retention-days: 30
+
+      - name: Publish to Snap Store
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_TOKEN }}
+        run: |
+          echo "🚀 Publishing to Snap Store (arm64)..."
+          snapcraft upload ares-src/${{ steps.build.outputs.snap_file }} --release=stable
+        continue-on-error: true
+
+  # ===========================================================================
+  # JOB 4: UPDATE TRACKING FILE
+  # ===========================================================================
+  # Runs after both builds. Updates .last_built_tags.json only for
   # architectures that built successfully, then commits + pushes.
-  #
-  # Tourne après la fin des deux builds. Met à jour .last_built_tags.json
-  # uniquement pour les architectures qui ont buildé avec succès, puis commit + push.
-  #
-  # WHY A SEPARATE JOB? / POURQUOI UN JOB SÉPARÉ ?
-  # If both arches committed from their own job, they'd create a race condition
-  # (parallel pushes to the same branch). A single final job avoids this.
-  #
-  # Si les deux arches committaient depuis leur propre job, ça créerait une
-  # race condition (pushs parallèles sur la même branche). Un seul job final évite ça.
+  # A single final job avoids race conditions from parallel pushes.
   # ===========================================================================
   update-tags:
-    needs: [check, build]
-
-    # always() is required because matrix jobs with 'if' that evaluate to false
-    # are reported as skipped, which would skip this job too without always().
-    # We only run if at least one build didn't fail.
-    #
-    # always() est requis car les jobs de matrice avec 'if' évalué à false sont
-    # marqués comme skippés, ce qui skipperait aussi ce job sans always().
-    if: >-
-      always() &&
-      (needs.check.outputs.build_amd64 == 'true' || needs.check.outputs.build_arm64 == 'true') &&
-      needs.build.result != 'failure'
-
+    needs: [check, build-amd64, build-arm64]
+    if: always() && (needs.build-amd64.result == 'success' || needs.build-arm64.result == 'success')
     runs-on: ubuntu-latest
 
     steps:
@@ -342,32 +217,25 @@ jobs:
         run: |
           TAG=${{ needs.check.outputs.latest_tag }}
 
-          # Read current state or initialize
-          # Lire l'état actuel ou initialiser
           if [ -f .last_built_tags.json ]; then
             JSON=$(cat .last_built_tags.json)
           else
             JSON='{"amd64":"","arm64":""}'
           fi
 
-          # Update only architectures that were requested to build
-          # Mettre à jour uniquement les architectures demandées
-          if [ "${{ needs.check.outputs.build_amd64 }}" == "true" ]; then
+          if [ "${{ needs.build-amd64.result }}" == "success" ]; then
             JSON=$(echo "$JSON" | jq --arg t "$TAG" '.amd64 = $t')
             echo "✅ amd64 → $TAG"
           fi
-          if [ "${{ needs.check.outputs.build_arm64 }}" == "true" ]; then
+          if [ "${{ needs.build-arm64.result }}" == "success" ]; then
             JSON=$(echo "$JSON" | jq --arg t "$TAG" '.arm64 = $t')
             echo "✅ arm64 → $TAG"
           fi
 
-          # Write formatted JSON / Écrire le JSON formaté
           echo "$JSON" | jq . > .last_built_tags.json
           echo "📄 Updated tracking file:"
           cat .last_built_tags.json
 
-      # [skip ci] prevents this commit from triggering another workflow run
-      # [skip ci] empêche ce commit de déclencher une autre exécution du workflow
       - name: Commit
         run: |
           git config user.name "github-actions"
