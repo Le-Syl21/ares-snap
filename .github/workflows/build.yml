@@ -121,7 +121,6 @@ on:
 # Common permissions / Permissions courantes:
 #   contents: read/write    - Access repository files / Accès aux fichiers du dépôt
 #   actions: read/write     - Manage workflows/artifacts / Gérer workflows/artifacts
-#   variables: read/write   - Manage repository variables / Gérer les variables de dépôt
 #   packages: read/write    - Publish to GitHub Packages / Publier sur GitHub Packages
 #   issues: read/write      - Manage issues / Gérer les issues
 #   pull-requests: write    - Comment on PRs / Commenter sur les PRs
@@ -135,8 +134,6 @@ permissions:
                      # Requis pour: actions/upload-artifact
   contents: read     # Required for: actions/checkout, git clone
                      # Requis pour: actions/checkout, git clone
-  variables: write   # Required for: gh variable set (update tracking variables)
-                     # Requis pour: gh variable set (MAJ des variables de suivi)
 
 # -----------------------------------------------------------------------------
 # JOBS
