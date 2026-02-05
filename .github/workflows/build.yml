@@ -1,0 +1,552 @@
+# =============================================================================
+# Ares Snap Builder - Automated Snap packaging for Ares emulator
+# Constructeur Snap Ares - Packaging Snap automatisé pour l'émulateur Ares
+# =============================================================================
+#
+# This workflow automatically builds and publishes Snap packages whenever
+# a new version of Ares is released. Builds natively for amd64 and arm64.
+#
+# Ce workflow construit et publie automatiquement des paquets Snap à chaque
+# nouvelle version d'Ares. Build natif pour amd64 et arm64.
+#
+# =============================================================================
+# EDUCATIONAL PURPOSE / BUT PÉDAGOGIQUE
+# =============================================================================
+# This repository is designed as a learning resource for packaging any
+# application as a Snap. Every section is commented to explain not just
+# WHAT it does, but WHY it's configured that way.
+#
+# Ce dépôt est conçu comme ressource pédagogique pour packager n'importe
+# quelle application en Snap. Chaque section est commentée pour expliquer
+# non seulement CE QUE ça fait, mais POURQUOI c'est configuré ainsi.
+#
+# =============================================================================
+# REQUIRED SETUP / CONFIGURATION REQUISE
+# =============================================================================
+# Before this workflow can run, you need to configure:
+# Avant que ce workflow puisse s'exécuter, vous devez configurer :
+#
+# 1. REPOSITORY VARIABLES (Settings > Secrets and variables > Actions > Variables)
+#    VARIABLES DE DÉPÔT
+#    - LAST_BUILT_TAG_AMD64 : Tracks last built version for amd64 (e.g., "v139")
+#                             Suit la dernière version buildée pour amd64
+#    - LAST_BUILT_TAG_ARM64 : Tracks last built version for arm64 (e.g., "v139")
+#                             Suit la dernière version buildée pour arm64
+#    TIP: Set initial value to "v0" to trigger first build
+#    ASTUCE: Mettre "v0" comme valeur initiale pour déclencher le premier build
+#
+# 2. REPOSITORY SECRET (Settings > Secrets and variables > Actions > Secrets)
+#    SECRET DE DÉPÔT
+#    - SNAPCRAFT_TOKEN : Authentication token for Snap Store publishing
+#                        Token d'authentification pour publier sur le Snap Store
+#    HOW TO GET IT / COMMENT L'OBTENIR:
+#      $ sudo snap install snapcraft --classic
+#      $ snapcraft login
+#      $ snapcraft export-login snapcraft.login
+#      $ cat snapcraft.login  # Copy this content to GitHub secret
+#      $ rm snapcraft.login   # Delete for security
+#
+# 3. WORKFLOW PERMISSIONS (Settings > Actions > General > Workflow permissions)
+#    PERMISSIONS DU WORKFLOW
+#    Select "Read and write permissions" to allow updating variables
+#    Sélectionner "Read and write permissions" pour permettre la MAJ des variables
+#
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# WORKFLOW NAME / NOM DU WORKFLOW
+# -----------------------------------------------------------------------------
+# This name appears in the GitHub Actions tab
+# Ce nom apparaît dans l'onglet GitHub Actions
+name: Build Ares Snap
+
+# -----------------------------------------------------------------------------
+# TRIGGERS / DÉCLENCHEURS
+# -----------------------------------------------------------------------------
+# Defines WHEN this workflow runs
+# Définit QUAND ce workflow s'exécute
+#
+# Available triggers / Déclencheurs disponibles:
+#   - push: On every push to specified branches
+#   - pull_request: On PR events
+#   - schedule: Cron-based scheduling
+#   - workflow_dispatch: Manual trigger from GitHub UI
+#   - release: When a release is created
+#   - And many more... / Et bien d'autres...
+# -----------------------------------------------------------------------------
+on:
+  # SCHEDULED TRIGGER / DÉCLENCHEUR PLANIFIÉ
+  # ----------------------------------------
+  # Cron syntax: minute hour day-of-month month day-of-week
+  # Syntaxe cron: minute heure jour-du-mois mois jour-de-semaine
+  #
+  # Examples / Exemples:
+  #   '0 6 * * *'    = Every day at 6:00 UTC / Tous les jours à 6h UTC
+  #   '0 */4 * * *'  = Every 4 hours / Toutes les 4 heures
+  #   '0 0 * * 0'    = Every Sunday at midnight / Chaque dimanche à minuit
+  #
+  # WHY 6:00 UTC? / POURQUOI 6H UTC ?
+  # Most releases happen during US/EU business hours, so checking in the
+  # morning UTC catches overnight releases without running too frequently.
+  # La plupart des releases arrivent pendant les heures US/EU, donc vérifier
+  # le matin UTC attrape les releases de nuit sans tourner trop souvent.
+  schedule:
+    - cron: '0 6 * * *'
+
+  # MANUAL TRIGGER / DÉCLENCHEUR MANUEL
+  # ------------------------------------
+  # Allows running the workflow from GitHub UI (Actions tab > Run workflow)
+  # Permet de lancer le workflow depuis l'UI GitHub (Actions > Run workflow)
+  #
+  # The 'inputs' section defines parameters the user can set when triggering
+  # La section 'inputs' définit les paramètres que l'utilisateur peut définir
+  workflow_dispatch:
+    inputs:
+      force_build:
+        # Description shown in the GitHub UI / Description affichée dans l'UI
+        description: 'Force build (bypass version check) / Forcer le build (ignorer la vérification de version)'
+        required: false
+        default: false
+        type: boolean  # Creates a checkbox in the UI / Crée une checkbox dans l'UI
+
+# -----------------------------------------------------------------------------
+# PERMISSIONS
+# -----------------------------------------------------------------------------
+# GitHub Actions uses a GITHUB_TOKEN with limited permissions by default.
+# GitHub Actions utilise un GITHUB_TOKEN avec des permissions limitées par défaut.
+#
+# We must explicitly request the permissions we need:
+# Nous devons explicitement demander les permissions nécessaires :
+#
+# Common permissions / Permissions courantes:
+#   contents: read/write    - Access repository files / Accès aux fichiers du dépôt
+#   actions: read/write     - Manage workflows/artifacts / Gérer workflows/artifacts
+#   variables: read/write   - Manage repository variables / Gérer les variables de dépôt
+#   packages: read/write    - Publish to GitHub Packages / Publier sur GitHub Packages
+#   issues: read/write      - Manage issues / Gérer les issues
+#   pull-requests: write    - Comment on PRs / Commenter sur les PRs
+#
+# SECURITY TIP / CONSEIL SÉCURITÉ:
+# Always use minimum required permissions (principle of least privilege)
+# Toujours utiliser le minimum de permissions nécessaires (principe du moindre privilège)
+# -----------------------------------------------------------------------------
+permissions:
+  actions: write     # Required for: actions/upload-artifact
+                     # Requis pour: actions/upload-artifact
+  contents: read     # Required for: actions/checkout, git clone
+                     # Requis pour: actions/checkout, git clone
+  variables: write   # Required for: gh variable set (update tracking variables)
+                     # Requis pour: gh variable set (MAJ des variables de suivi)
+
+# -----------------------------------------------------------------------------
+# JOBS
+# -----------------------------------------------------------------------------
+# A workflow is made of one or more jobs that run in parallel by default.
+# Un workflow est composé d'un ou plusieurs jobs qui s'exécutent en parallèle par défaut.
+#
+# Each job runs on a fresh virtual machine (runner).
+# Chaque job s'exécute sur une machine virtuelle fraîche (runner).
+#
+# Jobs can depend on each other using 'needs:', which makes them sequential.
+# Les jobs peuvent dépendre les uns des autres avec 'needs:', ce qui les rend séquentiels.
+#
+# ARCHITECTURE / ARCHITECTURE:
+# We use TWO independent jobs (amd64 + arm64) instead of a matrix strategy
+# because each architecture needs to track its own "last built" version.
+# This allows one arch to build while the other skips if already up-to-date.
+#
+# Nous utilisons DEUX jobs indépendants (amd64 + arm64) au lieu d'une stratégie
+# matrix car chaque architecture doit suivre sa propre version "dernier build".
+# Cela permet à une arch de builder pendant que l'autre passe si déjà à jour.
+# -----------------------------------------------------------------------------
+jobs:
+  # ===========================================================================
+  # JOB: build-amd64
+  # ===========================================================================
+  # Builds the Snap package for Intel/AMD 64-bit processors
+  # Construit le paquet Snap pour les processeurs Intel/AMD 64-bit
+  # ===========================================================================
+  build-amd64:
+    # RUNNER SELECTION / SÉLECTION DU RUNNER
+    # --------------------------------------
+    # 'runs-on' specifies which type of machine runs this job
+    # 'runs-on' spécifie quel type de machine exécute ce job
+    #
+    # GitHub-hosted runners / Runners hébergés par GitHub:
+    #   ubuntu-latest      - Ubuntu LTS (currently 22.04), x64
+    #   ubuntu-24.04       - Ubuntu 24.04, x64
+    #   ubuntu-24.04-arm   - Ubuntu 24.04, ARM64 (for native ARM builds)
+    #   windows-latest     - Windows Server
+    #   macos-latest       - macOS (currently macOS 14, ARM64)
+    #   macos-13           - macOS 13, x64
+    #
+    # You can also use self-hosted runners for custom hardware
+    # Vous pouvez aussi utiliser des runners self-hosted pour du hardware custom
+    runs-on: ubuntu-latest
+
+    # STEPS / ÉTAPES
+    # --------------
+    # Steps run sequentially within a job
+    # Les étapes s'exécutent séquentiellement dans un job
+    steps:
+      # -----------------------------------------------------------------------
+      # STEP 1: Check for new version
+      # ÉTAPE 1: Vérifier s'il y a une nouvelle version
+      # -----------------------------------------------------------------------
+      # This step queries the upstream repository to find the latest release
+      # tag, then compares it against our stored "last built" variable.
+      #
+      # Cette étape interroge le dépôt upstream pour trouver le dernier tag
+      # de release, puis le compare avec notre variable "dernier build" stockée.
+      #
+      # WHY CHECK FIRST? / POURQUOI VÉRIFIER D'ABORD ?
+      # To avoid wasting CI resources rebuilding the same version every day.
+      # Pour éviter de gaspiller des ressources CI à rebuilder la même version.
+      # -----------------------------------------------------------------------
+      - name: Check for new version
+        id: check  # ID allows other steps to reference this step's outputs
+                   # L'ID permet aux autres étapes de référencer les outputs de cette étape
+        run: |
+          # Fetch all tags matching 'v*' pattern from upstream repository
+          # Récupère tous les tags correspondant au pattern 'v*' du dépôt upstream
+          #
+          # Command breakdown / Décomposition de la commande:
+          #   git ls-remote --tags  : List remote tags without cloning
+          #                           Liste les tags distants sans cloner
+          #   cut -d/ -f3           : Extract tag name from refs/tags/v123
+          #                           Extrait le nom du tag de refs/tags/v123
+          #   sort -V               : Version sort (v2 < v10, not alphabetical)
+          #                           Tri par version (v2 < v10, pas alphabétique)
+          #   tail -1               : Get the last (highest) version
+          #                           Prend la dernière (plus haute) version
+          LATEST_TAG=$(git ls-remote --tags https://github.com/ares-emulator/ares.git 'refs/tags/v*' \
+            | cut -d/ -f3 \
+            | sort -V \
+            | tail -1)
+
+          echo "=========================================="
+          echo "Latest release tag: $LATEST_TAG"
+          echo "Last built (amd64): ${{ vars.LAST_BUILT_TAG_AMD64 }}"
+          echo "=========================================="
+
+          # DECISION LOGIC / LOGIQUE DE DÉCISION
+          # ${{ inputs.force_build }} : Value from manual trigger checkbox
+          #                             Valeur de la checkbox du déclencheur manuel
+          # ${{ vars.LAST_BUILT_TAG_AMD64 }} : Repository variable value
+          #                                    Valeur de la variable de dépôt
+          if [ "${{ inputs.force_build }}" == "true" ]; then
+            echo "⚡ FORCE BUILD REQUESTED"
+            echo "should_build=true" >> $GITHUB_OUTPUT
+          elif [ "$LATEST_TAG" != "${{ vars.LAST_BUILT_TAG_AMD64 }}" ]; then
+            echo "🆕 NEW VERSION DETECTED"
+            echo "should_build=true" >> $GITHUB_OUTPUT
+          else
+            echo "✓ Already up to date"
+            echo "should_build=false" >> $GITHUB_OUTPUT
+          fi
+
+          # OUTPUTS / SORTIES
+          # $GITHUB_OUTPUT is a special file for passing data between steps
+          # $GITHUB_OUTPUT est un fichier spécial pour passer des données entre étapes
+          #
+          # ${LATEST_TAG#v} removes the 'v' prefix: v139 -> 139
+          # ${LATEST_TAG#v} enlève le préfixe 'v': v139 -> 139
+          echo "tag_name=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "version=${LATEST_TAG#v}" >> $GITHUB_OUTPUT
+
+      # -----------------------------------------------------------------------
+      # STEP 2: Checkout our repository
+      # ÉTAPE 2: Récupérer notre dépôt
+      # -----------------------------------------------------------------------
+      # Gets our snap/ configuration files (not the upstream source)
+      # Récupère nos fichiers de configuration snap/ (pas le source upstream)
+      #
+      # CONDITIONAL EXECUTION / EXÉCUTION CONDITIONNELLE
+      # 'if:' allows skipping steps based on conditions
+      # 'if:' permet de passer des étapes selon des conditions
+      #
+      # steps.check.outputs.should_build references the output from step 'check'
+      # steps.check.outputs.should_build référence l'output de l'étape 'check'
+      # -----------------------------------------------------------------------
+      - name: Checkout config
+        if: steps.check.outputs.should_build == 'true'
+        uses: actions/checkout@v4
+        # ABOUT 'uses:' / À PROPOS DE 'uses:'
+        # References a reusable action from GitHub Marketplace or another repo
+        # Référence une action réutilisable du GitHub Marketplace ou d'un autre dépôt
+        #
+        # Format: owner/repo@version
+        # actions/checkout@v4 = github.com/actions/checkout, version 4.x
+
+      # -----------------------------------------------------------------------
+      # STEP 3: Clone upstream source code
+      # ÉTAPE 3: Cloner le code source upstream
+      # -----------------------------------------------------------------------
+      # We clone the upstream project at the specific release tag, then
+      # overlay our snap configuration on top of it.
+      #
+      # Nous clonons le projet upstream au tag de release spécifique, puis
+      # superposons notre configuration snap par-dessus.
+      #
+      # WHY OVERLAY? / POURQUOI SUPERPOSER ?
+      # This approach keeps our snap config separate from upstream, making
+      # it easy to update when new versions are released without merge conflicts.
+      #
+      # Cette approche garde notre config snap séparée de l'upstream, ce qui
+      # facilite les MAJ lors de nouvelles versions sans conflits de merge.
+      # -----------------------------------------------------------------------
+      - name: Clone ares source
+        if: steps.check.outputs.should_build == 'true'
+        run: |
+          echo "📦 Cloning ares ${{ steps.check.outputs.tag_name }}..."
+
+          # --depth 1 : Shallow clone (only latest commit, saves time/bandwidth)
+          #             Clone superficiel (seulement le dernier commit, économise temps/bande passante)
+          # --branch  : Checkout specific tag instead of default branch
+          #             Checkout un tag spécifique au lieu de la branche par défaut
+          git clone --depth 1 --branch ${{ steps.check.outputs.tag_name }} \
+            https://github.com/ares-emulator/ares.git ares-src
+
+          # Overlay our snap configuration / Superposer notre config snap
+          cp -r snap/ ares-src/
+
+          # Copy dependency configuration / Copier la config des dépendances
+          cp deps.json ares-src/
+
+          # Inject version into snapcraft.yaml using sed
+          # Injecter la version dans snapcraft.yaml avec sed
+          #
+          # sed -i : Edit file in-place / Édite le fichier sur place
+          # s/^version: .*/version: 'X'/ : Replace version line
+          #                                 Remplace la ligne version
+          sed -i "s/^version: .*/version: '${{ steps.check.outputs.version }}'/" ares-src/snap/snapcraft.yaml
+          echo "✓ Version set to ${{ steps.check.outputs.version }}"
+
+      # -----------------------------------------------------------------------
+      # STEP 4: Install Snapcraft
+      # ÉTAPE 4: Installer Snapcraft
+      # -----------------------------------------------------------------------
+      # Snapcraft is the tool that builds Snap packages
+      # Snapcraft est l'outil qui construit les paquets Snap
+      #
+      # --classic : Allows snapcraft full system access (needed for building)
+      #             Donne à snapcraft un accès complet au système (nécessaire pour builder)
+      # -----------------------------------------------------------------------
+      - name: Install snapcraft
+        if: steps.check.outputs.should_build == 'true'
+        run: sudo snap install snapcraft --classic
+
+      # -----------------------------------------------------------------------
+      # STEP 5: Build the Snap package
+      # ÉTAPE 5: Construire le paquet Snap
+      # -----------------------------------------------------------------------
+      # This is where the magic happens! Snapcraft reads snapcraft.yaml
+      # and builds the .snap file.
+      #
+      # C'est ici que la magie opère ! Snapcraft lit snapcraft.yaml
+      # et construit le fichier .snap.
+      #
+      # BUILD MODES / MODES DE BUILD:
+      #   snapcraft pack                    : Build in a clean LXD container (recommended)
+      #                                       Build dans un conteneur LXD propre (recommandé)
+      #   snapcraft pack --destructive-mode : Build directly on host (faster in CI)
+      #                                       Build directement sur l'hôte (plus rapide en CI)
+      #
+      # WHY --destructive-mode? / POURQUOI --destructive-mode ?
+      # In CI, the runner is ephemeral anyway, so we don't need container isolation.
+      # This is faster because it skips LXD setup.
+      # En CI, le runner est éphémère de toute façon, donc pas besoin d'isolation conteneur.
+      # C'est plus rapide car ça évite la config LXD.
+      # -----------------------------------------------------------------------
+      - name: Build snap
+        if: steps.check.outputs.should_build == 'true'
+        id: build
+        run: |
+          cd ares-src
+          snapcraft pack --destructive-mode
+
+          # Find the generated .snap file and export its name
+          # Trouver le fichier .snap généré et exporter son nom
+          echo "snap_file=$(ls *.snap)" >> $GITHUB_OUTPUT
+
+      # -----------------------------------------------------------------------
+      # STEP 6: Upload build artifact
+      # ÉTAPE 6: Uploader l'artifact de build
+      # -----------------------------------------------------------------------
+      # Artifacts are files preserved after the workflow completes.
+      # Les artifacts sont des fichiers préservés après la fin du workflow.
+      #
+      # Useful for / Utile pour:
+      #   - Downloading and testing builds manually
+      #     Télécharger et tester les builds manuellement
+      #   - Sharing files between jobs
+      #     Partager des fichiers entre jobs
+      #   - Keeping build history
+      #     Garder un historique des builds
+      #
+      # retention-days: How long to keep the artifact (max 90 for public repos)
+      # retention-days: Combien de temps garder l'artifact (max 90 pour les dépôts publics)
+      # -----------------------------------------------------------------------
+      - name: Upload artifact
+        if: steps.check.outputs.should_build == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ares-${{ steps.check.outputs.tag_name }}-amd64
+          path: ares-src/${{ steps.build.outputs.snap_file }}
+          retention-days: 30
+
+      # -----------------------------------------------------------------------
+      # STEP 7: Publish to Snap Store
+      # ÉTAPE 7: Publier sur le Snap Store
+      # -----------------------------------------------------------------------
+      # Uploads the .snap file to the Snap Store for distribution
+      # Upload le fichier .snap sur le Snap Store pour distribution
+      #
+      # AUTHENTICATION / AUTHENTIFICATION:
+      # SNAPCRAFT_STORE_CREDENTIALS env var is automatically used by snapcraft
+      # La variable d'env SNAPCRAFT_STORE_CREDENTIALS est utilisée automatiquement par snapcraft
+      #
+      # CHANNELS / CANAUX:
+      #   stable    : Production-ready releases / Releases prêtes pour la production
+      #   candidate : Release candidates for testing / Candidats de release pour tests
+      #   beta      : Beta versions / Versions beta
+      #   edge      : Latest development builds / Derniers builds de développement
+      #
+      # continue-on-error: true
+      # If publishing fails (e.g., name not registered yet), don't fail the whole job
+      # Si la publication échoue (ex: nom pas encore enregistré), ne pas échouer tout le job
+      # -----------------------------------------------------------------------
+      - name: Publish to Snap Store
+        if: steps.check.outputs.should_build == 'true'
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_TOKEN }}
+        run: |
+          echo "🚀 Publishing to Snap Store (amd64)..."
+          snapcraft upload ares-src/${{ steps.build.outputs.snap_file }} --release=stable
+        continue-on-error: true
+
+      # -----------------------------------------------------------------------
+      # STEP 8: Update version tracking variable
+      # ÉTAPE 8: Mettre à jour la variable de suivi de version
+      # -----------------------------------------------------------------------
+      # After successful build, update our tracking variable so we don't
+      # rebuild the same version next time.
+      #
+      # Après un build réussi, mettre à jour notre variable de suivi pour ne pas
+      # rebuilder la même version la prochaine fois.
+      #
+      # gh variable set : GitHub CLI command to update a repository variable
+      #                   Commande GitHub CLI pour MAJ une variable de dépôt
+      #
+      # --repo ${{ github.repository }} : Explicitly specify which repo
+      #                                   Spécifier explicitement quel dépôt
+      # -----------------------------------------------------------------------
+      - name: Update last built tag
+        if: steps.check.outputs.should_build == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh variable set LAST_BUILT_TAG_AMD64 --body "${{ steps.check.outputs.tag_name }}" --repo ${{ github.repository }}
+          echo "✅ Updated LAST_BUILT_TAG_AMD64 to ${{ steps.check.outputs.tag_name }}"
+
+  # ===========================================================================
+  # JOB: build-arm64
+  # ===========================================================================
+  # Builds the Snap package for ARM 64-bit processors (Raspberry Pi 4/5, etc.)
+  # Construit le paquet Snap pour les processeurs ARM 64-bit (Raspberry Pi 4/5, etc.)
+  #
+  # This job is nearly identical to build-amd64, but runs on an ARM runner.
+  # Ce job est quasi identique à build-amd64, mais tourne sur un runner ARM.
+  #
+  # WHY SEPARATE JOBS? / POURQUOI DES JOBS SÉPARÉS ?
+  # - Each arch tracks its own "last built" version independently
+  #   Chaque arch suit sa propre version "dernier build" indépendamment
+  # - One can build while the other skips if already up-to-date
+  #   L'un peut builder pendant que l'autre passe si déjà à jour
+  # - Native compilation is faster and more reliable than cross-compilation
+  #   La compilation native est plus rapide et fiable que la cross-compilation
+  # ===========================================================================
+  build-arm64:
+    # ubuntu-24.04-arm is GitHub's ARM64 runner
+    # ubuntu-24.04-arm est le runner ARM64 de GitHub
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - name: Check for new version
+        id: check
+        run: |
+          LATEST_TAG=$(git ls-remote --tags https://github.com/ares-emulator/ares.git 'refs/tags/v*' \
+            | cut -d/ -f3 \
+            | sort -V \
+            | tail -1)
+
+          echo "=========================================="
+          echo "Latest release tag: $LATEST_TAG"
+          echo "Last built (arm64): ${{ vars.LAST_BUILT_TAG_ARM64 }}"
+          echo "=========================================="
+
+          if [ "${{ inputs.force_build }}" == "true" ]; then
+            echo "⚡ FORCE BUILD REQUESTED"
+            echo "should_build=true" >> $GITHUB_OUTPUT
+          elif [ "$LATEST_TAG" != "${{ vars.LAST_BUILT_TAG_ARM64 }}" ]; then
+            echo "🆕 NEW VERSION DETECTED"
+            echo "should_build=true" >> $GITHUB_OUTPUT
+          else
+            echo "✓ Already up to date"
+            echo "should_build=false" >> $GITHUB_OUTPUT
+          fi
+
+          echo "tag_name=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "version=${LATEST_TAG#v}" >> $GITHUB_OUTPUT
+
+      - name: Checkout config
+        if: steps.check.outputs.should_build == 'true'
+        uses: actions/checkout@v4
+
+      - name: Clone ares source
+        if: steps.check.outputs.should_build == 'true'
+        run: |
+          echo "📦 Cloning ares ${{ steps.check.outputs.tag_name }}..."
+          git clone --depth 1 --branch ${{ steps.check.outputs.tag_name }} \
+            https://github.com/ares-emulator/ares.git ares-src
+          cp -r snap/ ares-src/
+          cp deps.json ares-src/
+          sed -i "s/^version: .*/version: '${{ steps.check.outputs.version }}'/" ares-src/snap/snapcraft.yaml
+          echo "✓ Version set to ${{ steps.check.outputs.version }}"
+
+      - name: Install snapcraft
+        if: steps.check.outputs.should_build == 'true'
+        run: sudo snap install snapcraft --classic
+
+      - name: Build snap
+        if: steps.check.outputs.should_build == 'true'
+        id: build
+        run: |
+          cd ares-src
+          snapcraft pack --destructive-mode
+          echo "snap_file=$(ls *.snap)" >> $GITHUB_OUTPUT
+
+      - name: Upload artifact
+        if: steps.check.outputs.should_build == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ares-${{ steps.check.outputs.tag_name }}-arm64
+          path: ares-src/${{ steps.build.outputs.snap_file }}
+          retention-days: 30
+
+      - name: Publish to Snap Store
+        if: steps.check.outputs.should_build == 'true'
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_TOKEN }}
+        run: |
+          echo "🚀 Publishing to Snap Store (arm64)..."
+          snapcraft upload ares-src/${{ steps.build.outputs.snap_file }} --release=stable
+        continue-on-error: true
+
+      - name: Update last built tag
+        if: steps.check.outputs.should_build == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh variable set LAST_BUILT_TAG_ARM64 --body "${{ steps.check.outputs.tag_name }}" --repo ${{ github.repository }}
+          echo "✅ Updated LAST_BUILT_TAG_ARM64 to ${{ steps.check.outputs.tag_name }}"

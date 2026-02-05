@@ -1,0 +1,603 @@
+# =============================================================================
+# Ares Snap Package Configuration / Configuration du paquet Snap Ares
+# =============================================================================
+#
+# This file defines how the Ares emulator is packaged as a Snap.
+# Ce fichier définit comment l'émulateur Ares est empaqueté en Snap.
+#
+# =============================================================================
+# EDUCATIONAL PURPOSE / BUT PÉDAGOGIQUE
+# =============================================================================
+# This file is extensively commented to serve as a learning resource.
+# Use it as a template for packaging your own applications.
+#
+# Ce fichier est abondamment commenté pour servir de ressource pédagogique.
+# Utilisez-le comme template pour packager vos propres applications.
+#
+# =============================================================================
+# USEFUL LINKS / LIENS UTILES
+# =============================================================================
+# Snapcraft documentation / Documentation Snapcraft:
+#   https://snapcraft.io/docs
+#
+# Snapcraft YAML reference / Référence YAML Snapcraft:
+#   https://snapcraft.io/docs/snapcraft-yaml-reference
+#
+# Available plugs (permissions) / Plugs disponibles (permissions):
+#   https://snapcraft.io/docs/supported-interfaces
+#
+# Ares emulator / Émulateur Ares:
+#   https://ares-emu.net
+# =============================================================================
+
+# =============================================================================
+# METADATA SECTION / SECTION MÉTADONNÉES
+# =============================================================================
+# This section defines basic package information displayed in the Snap Store
+# and used by package managers.
+#
+# Cette section définit les informations de base du paquet affichées dans le
+# Snap Store et utilisées par les gestionnaires de paquets.
+# =============================================================================
+
+# PACKAGE NAME / NOM DU PAQUET
+# ----------------------------
+# The unique identifier for your snap in the Snap Store.
+# L'identifiant unique de votre snap dans le Snap Store.
+#
+# RULES / RÈGLES:
+#   - Must be lowercase / Doit être en minuscules
+#   - Can contain letters, numbers, hyphens / Peut contenir lettres, chiffres, tirets
+#   - Must be unique in the Snap Store / Doit être unique dans le Snap Store
+#   - Register at: https://snapcraft.io/register
+#     Enregistrer sur: https://snapcraft.io/register
+name: ares
+
+# BASE SNAP / SNAP DE BASE
+# ------------------------
+# The base snap provides the core runtime (libc, basic utilities, etc.)
+# Le snap de base fournit le runtime de base (libc, utilitaires de base, etc.)
+#
+# Available bases / Bases disponibles:
+#   core24 : Ubuntu 24.04 LTS (recommended, newest / recommandé, le plus récent)
+#   core22 : Ubuntu 22.04 LTS (stable, widely supported / stable, largement supporté)
+#   core20 : Ubuntu 20.04 LTS (legacy / ancien)
+#   core18 : Ubuntu 18.04 LTS (deprecated / déprécié)
+#   bare   : No base, for fully static snaps / Pas de base, pour snaps entièrement statiques
+#
+# WHY core24? / POURQUOI core24 ?
+# Newest LTS = newest libraries = better hardware support
+# Dernier LTS = bibliothèques récentes = meilleur support matériel
+base: core24
+
+# VERSION / VERSION
+# -----------------
+# The version string displayed to users.
+# La chaîne de version affichée aux utilisateurs.
+#
+# Can be / Peut être:
+#   - Static string: '1.0.0' / Chaîne statique: '1.0.0'
+#   - git-based: 'git' (auto-detect from git tags) / Basée sur git: 'git'
+#   - Script: set via "craftctl set version=X" in override-pull
+#             définie via "craftctl set version=X" dans override-pull
+#
+# NOTE: Our CI workflow replaces this value with the actual release tag.
+#       Notre workflow CI remplace cette valeur par le vrai tag de release.
+version: '0'
+
+# TITLE / TITRE
+# -------------
+# Human-readable name shown in the Snap Store (can have spaces, capitals).
+# Nom lisible affiché dans le Snap Store (peut avoir espaces, majuscules).
+title: ares
+
+# SUMMARY / RÉSUMÉ
+# ----------------
+# One-line description (max 79 characters for best display).
+# Description en une ligne (max 79 caractères pour un meilleur affichage).
+summary: Multi-system emulator focusing on accuracy and preservation
+
+# DESCRIPTION / DESCRIPTION
+# -------------------------
+# Full description shown in the Snap Store. Supports markdown formatting.
+# Description complète affichée dans le Snap Store. Supporte le formatage markdown.
+#
+# The "|" character starts a multi-line string in YAML.
+# Le caractère "|" démarre une chaîne multi-ligne en YAML.
+description: |
+  ares is a cross-platform, open source, multi-system emulator,
+  focusing on accuracy and preservation. Supports SNES, N64, PS1,
+  and many other systems.
+
+# =============================================================================
+# STORE LISTING / FICHE SNAP STORE
+# =============================================================================
+# Additional metadata for the Snap Store listing page.
+# Métadonnées supplémentaires pour la page de la fiche Snap Store.
+# =============================================================================
+
+# LICENSE / LICENCE
+# -----------------
+# SPDX license identifier. Common licenses:
+# Identifiant de licence SPDX. Licences courantes:
+#   - MIT, GPL-3.0, Apache-2.0, ISC, BSD-3-Clause, Proprietary
+# Full list / Liste complète: https://spdx.org/licenses/
+license: ISC
+
+# LINKS / LIENS
+# -------------
+# These appear on your Snap Store page / Apparaissent sur votre page Snap Store
+website: https://ares-emu.net
+source-code: https://github.com/ares-emulator/ares
+issues: https://github.com/ares-emulator/ares/issues
+contact: https://discord.com/invite/gz2quhk2kv
+
+# =============================================================================
+# RELEASE CONFIGURATION / CONFIGURATION DE RELEASE
+# =============================================================================
+# Controls how your snap can be published and installed.
+# Contrôle comment votre snap peut être publié et installé.
+# =============================================================================
+
+# GRADE / GRADE
+# -------------
+# Declares the quality level of your snap.
+# Déclare le niveau de qualité de votre snap.
+#
+# - stable : Production-ready, can be released to stable channel
+#            Prêt pour la production, peut être publié sur le canal stable
+# - devel  : Development/testing, cannot be released to stable channel
+#            Développement/test, ne peut pas être publié sur le canal stable
+grade: stable
+
+# CONFINEMENT / CONFINEMENT
+# -------------------------
+# The security isolation level. This is a KEY CONCEPT of Snaps!
+# Le niveau d'isolation de sécurité. C'est un CONCEPT CLÉ des Snaps !
+#
+# - strict  : Full sandbox, only explicit permissions via plugs (RECOMMENDED)
+#             Sandbox complet, seulement les permissions explicites via plugs (RECOMMANDÉ)
+# - classic : No sandbox, full system access (requires manual approval by Snap team)
+#             Pas de sandbox, accès complet au système (nécessite approbation manuelle)
+# - devmode : Developer mode, all permissions, but users see a warning
+#             Mode développeur, toutes permissions, mais les utilisateurs voient un avertissement
+#
+# ALWAYS prefer "strict" for security. Use plugs to grant specific permissions.
+# TOUJOURS préférer "strict" pour la sécurité. Utiliser les plugs pour les permissions.
+confinement: strict
+
+# =============================================================================
+# APPLICATIONS SECTION / SECTION APPLICATIONS
+# =============================================================================
+# Defines the executables exposed by the Snap.
+# Définit les exécutables exposés par le Snap.
+#
+# Each app becomes a command that users can run:
+# Chaque app devient une commande que les utilisateurs peuvent exécuter:
+#   $ snap run ares      # Explicit / Explicite
+#   $ ares               # If snap is connected / Si le snap est connecté
+# =============================================================================
+apps:
+  # APP NAME / NOM DE L'APP
+  # -----------------------
+  # If app name matches snap name, users can just type "ares" instead of "ares.ares"
+  # Si le nom de l'app correspond au nom du snap, les utilisateurs tapent juste "ares"
+  ares:
+    # COMMAND / COMMANDE
+    # ------------------
+    # Path to the executable inside the snap, relative to $SNAP
+    # Chemin vers l'exécutable dans le snap, relatif à $SNAP
+    #
+    # $SNAP is the root of your installed snap (e.g., /snap/ares/current)
+    # $SNAP est la racine de votre snap installé (ex: /snap/ares/current)
+    command: usr/bin/ares
+
+    # -------------------------------------------------------------------------
+    # EXTENSIONS / EXTENSIONS
+    # -------------------------------------------------------------------------
+    # Extensions provide pre-configured environment setup for common use cases.
+    # Les extensions fournissent une configuration d'environnement pré-configurée.
+    #
+    # The "gnome" extension automatically:
+    # L'extension "gnome" configure automatiquement:
+    #   - Sets up GTK, GLib, GSettings paths
+    #     Configure les chemins GTK, GLib, GSettings
+    #   - Provides theme, font, and cursor integration
+    #     Fournit l'intégration des thèmes, polices et curseurs
+    #   - Configures D-Bus access for desktop services
+    #     Configure l'accès D-Bus pour les services desktop
+    #   - Sets up XDG directories (config, data, cache)
+    #     Configure les répertoires XDG (config, data, cache)
+    #
+    # Available extensions / Extensions disponibles:
+    #   - gnome          : For GTK3/GTK4 apps / Pour apps GTK3/GTK4
+    #   - kde-neon       : For Qt/KDE apps / Pour apps Qt/KDE
+    #   - ros2-humble    : For ROS 2 apps / Pour apps ROS 2
+    # -------------------------------------------------------------------------
+    extensions: [gnome]
+
+    # -------------------------------------------------------------------------
+    # ENVIRONMENT VARIABLES / VARIABLES D'ENVIRONNEMENT
+    # -------------------------------------------------------------------------
+    # Custom environment variables set when the app runs.
+    # Variables d'environnement personnalisées définies au lancement de l'app.
+    #
+    # NO_AT_BRIDGE: Disables accessibility bridge warnings that appear when
+    # AT-SPI (assistive technology) isn't available in the sandbox.
+    # NO_AT_BRIDGE: Désactive les avertissements du bridge d'accessibilité qui
+    # apparaissent quand AT-SPI n'est pas disponible dans le sandbox.
+    # -------------------------------------------------------------------------
+    environment:
+      NO_AT_BRIDGE: "1"
+
+    # -------------------------------------------------------------------------
+    # PLUGS (PERMISSIONS) / PLUGS (PERMISSIONS)
+    # -------------------------------------------------------------------------
+    # Plugs grant your app specific capabilities. This is the core of Snap security.
+    # Les plugs accordent des capacités spécifiques à votre app. C'est le cœur de la sécurité Snap.
+    #
+    # HOW IT WORKS / COMMENT ÇA MARCHE:
+    # - You declare which plugs your app needs
+    #   Vous déclarez quels plugs votre app a besoin
+    # - Some plugs auto-connect (safe ones), others require user approval
+    #   Certains plugs se connectent auto (les sûrs), d'autres nécessitent approbation
+    # - Users can disconnect plugs: snap disconnect ares:home
+    #   Les utilisateurs peuvent déconnecter: snap disconnect ares:home
+    #
+    # COMMON PLUGS / PLUGS COURANTS:
+    # -------------------------------------------------------------------------
+    # STORAGE / STOCKAGE:
+    #   home            : Access to user's home directory ~/
+    #                     Accès au répertoire home de l'utilisateur ~/
+    #   removable-media : Access to /media and /mnt (USB drives, etc.)
+    #                     Accès à /media et /mnt (clés USB, etc.)
+    #   personal-files  : Access to specific dotfiles (needs declaration)
+    #                     Accès à des dotfiles spécifiques (nécessite déclaration)
+    #
+    # AUDIO / AUDIO:
+    #   audio-playback  : Play sounds / Jouer des sons
+    #   audio-record    : Record from microphone / Enregistrer depuis le micro
+    #   pulseaudio      : Direct PulseAudio access / Accès direct PulseAudio
+    #
+    # DISPLAY / AFFICHAGE:
+    #   x11             : X11 window system / Système de fenêtrage X11
+    #   wayland         : Wayland compositor / Compositeur Wayland
+    #   opengl          : GPU/OpenGL acceleration / Accélération GPU/OpenGL
+    #
+    # INPUT / ENTRÉE:
+    #   joystick        : Game controllers / Manettes de jeu
+    #   raw-input       : Direct input device access / Accès direct aux périphériques d'entrée
+    #
+    # NETWORK / RÉSEAU:
+    #   network         : Outbound network access / Accès réseau sortant
+    #   network-bind    : Listen on ports / Écouter sur des ports
+    #
+    # HARDWARE / MATÉRIEL:
+    #   camera          : Webcam access / Accès webcam
+    #   bluetooth-control : Bluetooth / Bluetooth
+    #   serial-port     : Serial ports / Ports série
+    #
+    # Full list / Liste complète: https://snapcraft.io/docs/supported-interfaces
+    # -------------------------------------------------------------------------
+    plugs:
+      - home              # ROMs and saves in ~/ / ROMs et sauvegardes dans ~/
+      - removable-media   # ROMs on USB drives / ROMs sur clés USB
+      - audio-playback    # Game audio / Audio du jeu
+      - joystick          # Controllers / Manettes
+      - opengl            # GPU rendering / Rendu GPU
+      - x11               # X11 display / Affichage X11
+      - wayland           # Wayland display / Affichage Wayland
+
+# =============================================================================
+# PARTS SECTION / SECTION PARTS
+# =============================================================================
+# Parts define HOW your snap is built. Each part is a component that gets
+# compiled, downloaded, or processed.
+#
+# Les parts définissent COMMENT votre snap est construit. Chaque part est un
+# composant qui est compilé, téléchargé ou traité.
+#
+# KEY CONCEPTS / CONCEPTS CLÉS:
+# - Parts can depend on each other using "after:" keyword
+#   Les parts peuvent dépendre les unes des autres avec "after:"
+# - Parts go through stages: pull → build → stage → prime
+#   Les parts passent par des étapes: pull → build → stage → prime
+# - Files are installed to $CRAFT_PART_INSTALL, then staged, then primed
+#   Les fichiers sont installés dans $CRAFT_PART_INSTALL, puis staged, puis primed
+#
+# BUILD LIFECYCLE / CYCLE DE VIE DU BUILD:
+# 1. PULL    : Download/copy source code / Télécharge/copie le code source
+# 2. BUILD   : Compile the code / Compile le code
+# 3. STAGE   : Copy built files to staging area / Copie les fichiers vers staging
+# 4. PRIME   : Copy staged files to final snap / Copie les fichiers staged vers le snap final
+#
+# You can override any stage with override-pull, override-build, etc.
+# Vous pouvez surcharger chaque étape avec override-pull, override-build, etc.
+# =============================================================================
+parts:
+
+  # ===========================================================================
+  # PART 1: ares-deps - Prebuilt external dependencies
+  # PART 1: ares-deps - Dépendances externes précompilées
+  # ===========================================================================
+  # This part downloads prebuilt libraries (SDL3, librashader) that are either:
+  # - Not available in Ubuntu repositories
+  # - Too old in Ubuntu repositories
+  # - Need specific build flags
+  #
+  # Cette part télécharge des bibliothèques précompilées (SDL3, librashader) qui:
+  # - Ne sont pas disponibles dans les dépôts Ubuntu
+  # - Sont trop anciennes dans les dépôts Ubuntu
+  # - Nécessitent des flags de build spécifiques
+  #
+  # The prebuilt deps come from: https://github.com/ares-emulator/ares-deps
+  # Les deps précompilées viennent de: https://github.com/ares-emulator/ares-deps
+  # ===========================================================================
+  ares-deps:
+    # SOURCE / SOURCE
+    # ---------------
+    # Where to get the source. Can be:
+    # D'où récupérer la source. Peut être:
+    #   - Local path: ".", "./src", "/path/to/source"
+    #   - Git URL: "https://github.com/user/repo.git"
+    #   - Tarball: "https://example.com/source.tar.gz"
+    #   - With branch/tag: source-branch: main, source-tag: v1.0
+    source: .
+
+    # PLUGIN / PLUGIN
+    # ---------------
+    # How to build this part. Available plugins:
+    # Comment construire cette part. Plugins disponibles:
+    #   - nil      : No build, just copy files / Pas de build, juste copier
+    #   - cmake    : CMake projects / Projets CMake
+    #   - make     : Makefile projects / Projets Makefile
+    #   - meson    : Meson projects / Projets Meson
+    #   - autotools: Autoconf/Automake / Autoconf/Automake
+    #   - python   : Python projects / Projets Python
+    #   - go       : Go projects / Projets Go
+    #   - rust     : Rust/Cargo projects / Projets Rust/Cargo
+    #   - npm      : Node.js projects / Projets Node.js
+    #   - dump     : Just extract archives / Juste extraire des archives
+    #
+    # We use "nil" because we handle everything in override-build
+    # On utilise "nil" car on gère tout dans override-build
+    plugin: nil
+
+    # BUILD PACKAGES / PAQUETS DE BUILD
+    # ----------------------------------
+    # Packages installed for building, but NOT included in final snap.
+    # Paquets installés pour le build, mais NON inclus dans le snap final.
+    #
+    # Use for: compilers, build tools, development headers
+    # Utiliser pour: compilateurs, outils de build, headers de développement
+    build-packages:
+      - curl    # To download deps / Pour télécharger les deps
+      - jq      # To parse JSON / Pour parser le JSON
+
+    # OVERRIDE-BUILD / SURCHARGE DE BUILD
+    # ------------------------------------
+    # Custom build script that replaces the default build step.
+    # Script de build personnalisé qui remplace l'étape de build par défaut.
+    #
+    # Available variables / Variables disponibles:
+    #   $CRAFT_PART_SRC     : Source directory / Répertoire source
+    #   $CRAFT_PART_BUILD   : Build directory / Répertoire de build
+    #   $CRAFT_PART_INSTALL : Install directory / Répertoire d'installation
+    #   $CRAFT_ARCH_BUILD_FOR : Target architecture / Architecture cible
+    #   $CRAFT_PARALLEL_BUILD_COUNT : Number of CPU cores / Nombre de cœurs CPU
+    override-build: |
+      # ---------------------------------------------------------------------
+      # Read configuration from deps.json
+      # Lit la configuration depuis deps.json
+      # ---------------------------------------------------------------------
+      DEPS_JSON="${CRAFT_PART_SRC}/deps.json"
+      VERSION=$(jq -r '.version' "$DEPS_JSON")
+      BASE_URL=$(jq -r '.baseUrl' "$DEPS_JSON")
+
+      # ---------------------------------------------------------------------
+      # Detect architecture and select platform
+      # Détecte l'architecture et sélectionne la plateforme
+      # ---------------------------------------------------------------------
+      # dpkg --print-architecture returns: amd64, arm64, armhf, i386, etc.
+      ARCH=$(dpkg --print-architecture)
+      if [ "$ARCH" = "amd64" ]; then
+        PLATFORM="linux-x64"
+      else
+        PLATFORM="linux-arm64"
+      fi
+
+      # Get expected hash for verification / Récupère le hash attendu pour vérification
+      EXPECTED_HASH=$(jq -r ".hashes[\"$PLATFORM\"]" "$DEPS_JSON")
+
+      # ---------------------------------------------------------------------
+      # Download prebuilt dependencies
+      # Télécharge les dépendances précompilées
+      # ---------------------------------------------------------------------
+      DOWNLOAD_URL="${BASE_URL}/${VERSION}/ares-deps-${PLATFORM}.tar.xz"
+      echo "Downloading ${DOWNLOAD_URL}..."
+      curl -L -o ares-deps.tar.xz "$DOWNLOAD_URL"
+
+      # ---------------------------------------------------------------------
+      # Verify SHA256 hash for security
+      # Vérifie le hash SHA256 pour la sécurité
+      # ---------------------------------------------------------------------
+      # IMPORTANT: Always verify downloaded files!
+      # IMPORTANT: Toujours vérifier les fichiers téléchargés !
+      ACTUAL_HASH=$(sha256sum ares-deps.tar.xz | cut -d' ' -f1)
+      if [ "$ACTUAL_HASH" != "$EXPECTED_HASH" ]; then
+        echo "❌ Hash mismatch! Expected: $EXPECTED_HASH, Got: $ACTUAL_HASH"
+        exit 1
+      fi
+      echo "✓ Hash verified"
+
+      # ---------------------------------------------------------------------
+      # Extract and install to staging area
+      # Extrait et installe vers la zone de staging
+      # ---------------------------------------------------------------------
+      tar -xJf ares-deps.tar.xz
+      mv ares-deps-${PLATFORM} ares-deps
+
+      # Create target directories / Crée les répertoires cibles
+      mkdir -p $CRAFT_PART_INSTALL/usr/lib
+      mkdir -p $CRAFT_PART_INSTALL/usr/include
+
+      # Copy libraries (with symlinks preserved via -P)
+      # Copie les bibliothèques (avec symlinks préservés via -P)
+      cp -P ares-deps/lib/*.so* $CRAFT_PART_INSTALL/usr/lib/ || true
+
+      # Copy headers (needed for building ares)
+      # Copie les headers (nécessaires pour builder ares)
+      cp -R ares-deps/include/* $CRAFT_PART_INSTALL/usr/include/ || true
+
+      # Copy shader presets if present / Copie les presets de shaders si présents
+      if [ -d "ares-deps/share" ]; then
+        mkdir -p $CRAFT_PART_INSTALL/usr/share
+        cp -R ares-deps/share/* $CRAFT_PART_INSTALL/usr/share/
+      fi
+
+    # STAGE FILTER / FILTRE DE STAGING
+    # ---------------------------------
+    # Controls which files are copied from $CRAFT_PART_INSTALL to the staging area.
+    # Contrôle quels fichiers sont copiés de $CRAFT_PART_INSTALL vers staging.
+    #
+    # Format: list of glob patterns / Format: liste de patterns glob
+    #   - "usr/lib"     : Include this directory / Inclure ce répertoire
+    #   - "-usr/lib/X"  : Exclude this (prefix with -) / Exclure ceci (préfixer avec -)
+    stage:
+      - usr/lib/*.so*   # Shared libraries / Bibliothèques partagées
+      - usr/include     # Headers for next parts / Headers pour les parts suivantes
+      - usr/share       # Shader presets / Presets de shaders
+
+  # ===========================================================================
+  # PART 2: ares - Main emulator build
+  # PART 2: ares - Build de l'émulateur principal
+  # ===========================================================================
+  # Builds the ares emulator from source using CMake.
+  # Construit l'émulateur ares depuis les sources avec CMake.
+  # ===========================================================================
+  ares:
+    # AFTER / APRÈS
+    # -------------
+    # This part depends on ares-deps being built first.
+    # Cette part dépend de ares-deps étant construit en premier.
+    #
+    # Files from ares-deps are available in the staging area.
+    # Les fichiers de ares-deps sont disponibles dans la zone de staging.
+    after: [ares-deps]
+
+    # Source is current directory (cloned ares repository)
+    # La source est le répertoire courant (dépôt ares cloné)
+    source: .
+
+    # Use CMake plugin for building / Utilise le plugin CMake pour builder
+    plugin: cmake
+
+    # CMAKE PARAMETERS / PARAMÈTRES CMAKE
+    # ------------------------------------
+    # Options passed to cmake during configuration.
+    # Options passées à cmake pendant la configuration.
+    #
+    # Equivalent to: cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release ...
+    cmake-parameters:
+      - -DCMAKE_INSTALL_PREFIX=/usr    # Install to /usr in the snap
+      - -DCMAKE_BUILD_TYPE=Release     # Optimized release build
+      - -DARES_SKIP_DEPS=ON            # Don't download deps, use ours
+      - -DARES_BUILD_OFFICIAL=ON       # Enable official build flags
+
+    # BUILD PACKAGES / PAQUETS DE BUILD
+    # ----------------------------------
+    # Development packages needed to compile ares.
+    # Paquets de développement nécessaires pour compiler ares.
+    #
+    # Note: These are NOT included in the final snap, only used for building.
+    # Note: Ceux-ci NE sont PAS inclus dans le snap final, utilisés uniquement pour le build.
+    build-packages:
+      - build-essential   # GCC, make, etc.
+      - clang             # We prefer clang for C++ / On préfère clang pour C++
+      - pkg-config        # Library detection / Détection de bibliothèques
+      - libgtk-3-dev      # GTK3 headers
+      - libgl-dev         # OpenGL headers
+      - libasound2-dev    # ALSA audio headers
+      - libao-dev         # Audio Output library headers
+      - libopenal-dev     # OpenAL 3D audio headers
+      - libpulse-dev      # PulseAudio headers
+      - libudev-dev       # Device detection headers
+
+    # STAGE PACKAGES / PAQUETS DE STAGE
+    # ----------------------------------
+    # Runtime libraries INCLUDED in the final snap.
+    # Bibliothèques runtime INCLUSES dans le snap final.
+    #
+    # These are the dependencies your app needs at runtime.
+    # Ce sont les dépendances dont votre app a besoin à l'exécution.
+    #
+    # TIP: Use "ldd your-binary" to find required libraries.
+    # ASTUCE: Utilisez "ldd votre-binaire" pour trouver les bibliothèques requises.
+    #
+    # Note: Package names with "t64" suffix are Ubuntu 24.04's 64-bit time_t transition.
+    # Note: Les noms de paquets avec suffixe "t64" sont la transition time_t 64-bit d'Ubuntu 24.04.
+    stage-packages:
+      - libgtk-3-0t64     # GTK3 runtime
+      - libgl1            # OpenGL runtime
+      - libasound2t64     # ALSA audio runtime
+      - libao4            # Audio Output runtime
+      - libopenal1        # OpenAL 3D audio runtime
+      - libpulse0         # PulseAudio client
+      - libvulkan1        # Vulkan runtime (for librashader)
+      - libxapp-gtk3-module  # Better GTK desktop integration
+
+    # OVERRIDE-PRIME / SURCHARGE DE PRIME
+    # ------------------------------------
+    # Custom script run during the prime phase (final snap creation).
+    # Script personnalisé exécuté pendant la phase prime (création du snap final).
+    #
+    # The prime phase is where we set up desktop integration.
+    # La phase prime est où on configure l'intégration desktop.
+    #
+    # "craftctl default" runs the standard prime behavior first.
+    # "craftctl default" exécute d'abord le comportement prime standard.
+    override-prime: |
+      craftctl default
+
+      # ---------------------------------------------------------------------
+      # Desktop integration / Intégration desktop
+      # ---------------------------------------------------------------------
+      # Snaps need a .desktop file and icon for proper desktop integration
+      # (app menu, taskbar, file associations, etc.)
+      #
+      # Les snaps ont besoin d'un fichier .desktop et d'une icône pour une
+      # bonne intégration desktop (menu apps, barre des tâches, associations, etc.)
+      # ---------------------------------------------------------------------
+
+      # Create meta/gui directory (required for desktop files)
+      # Crée le répertoire meta/gui (requis pour les fichiers desktop)
+      mkdir -p $CRAFT_PRIME/meta/gui
+
+      # Copy application icon / Copie l'icône de l'application
+      cp $CRAFT_PRIME/usr/share/icons/hicolor/256x256/apps/ares.png \
+         $CRAFT_PRIME/meta/gui/ares.png
+
+      # ---------------------------------------------------------------------
+      # Generate .desktop file
+      # Génère le fichier .desktop
+      # ---------------------------------------------------------------------
+      # The .desktop file follows the freedesktop.org specification:
+      # https://specifications.freedesktop.org/desktop-entry-spec/latest/
+      #
+      # Le fichier .desktop suit la spécification freedesktop.org:
+      # https://specifications.freedesktop.org/desktop-entry-spec/latest/
+      # ---------------------------------------------------------------------
+      cat > $CRAFT_PRIME/meta/gui/ares.desktop << 'EOF'
+      [Desktop Entry]
+      Name=ares
+      Comment=Multi-system emulator focusing on accuracy and preservation
+      Exec=ares
+      Icon=${SNAP}/meta/gui/ares.png
+      Terminal=false
+      Type=Application
+      Categories=Game;Emulator;
+      Keywords=emulator;nintendo;sega;playstation;
+      EOF
+
+      # Remove leading spaces from heredoc / Supprime les espaces du heredoc
+      sed -i 's/^      //' $CRAFT_PRIME/meta/gui/ares.desktop

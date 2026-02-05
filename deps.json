@@ -1,0 +1,8 @@
+{
+  "version": "2026-02-05",
+  "baseUrl": "https://github.com/Le-Syl21/ares-deps/releases/download",
+  "hashes": {
+    "linux-x64": "5fc1a3056614d0f594522f0accea8f0530becd436d40e913289ed3c1268c454e",
+    "linux-arm64": "0598c0ab9ba7882bb0514c20f0dd7d752128af96ffb79e27831f9d7bdfcc4e4f"
+  }
+}
