@@ -446,7 +446,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh variable set LAST_BUILT_TAG_AMD64 --body "${{ steps.check.outputs.tag_name }}" --repo ${{ github.repository }}
+          gh variable set LAST_BUILT_TAG_AMD64 --body "${{ steps.check.outputs.tag_name }}"
           echo "✅ Updated LAST_BUILT_TAG_AMD64 to ${{ steps.check.outputs.tag_name }}"
 
   # ===========================================================================
@@ -548,5 +548,5 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh variable set LAST_BUILT_TAG_ARM64 --body "${{ steps.check.outputs.tag_name }}" --repo ${{ github.repository }}
+          gh variable set LAST_BUILT_TAG_ARM64 --body "${{ steps.check.outputs.tag_name }}"
           echo "✅ Updated LAST_BUILT_TAG_ARM64 to ${{ steps.check.outputs.tag_name }}"
