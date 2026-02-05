@@ -35,21 +35,23 @@
 #    TIP: Set initial value to "v0" to trigger first build
 #    ASTUCE: Mettre "v0" comme valeur initiale pour déclencher le premier build
 #
-# 2. REPOSITORY SECRET (Settings > Secrets and variables > Actions > Secrets)
-#    SECRET DE DÉPÔT
+# 2. REPOSITORY SECRETS (Settings > Secrets and variables > Actions > Secrets)
+#    SECRETS DE DÉPÔT
 #    - SNAPCRAFT_TOKEN : Authentication token for Snap Store publishing
 #                        Token d'authentification pour publier sur le Snap Store
-#    HOW TO GET IT / COMMENT L'OBTENIR:
-#      $ sudo snap install snapcraft --classic
-#      $ snapcraft login
-#      $ snapcraft export-login snapcraft.login
-#      $ cat snapcraft.login  # Copy this content to GitHub secret
-#      $ rm snapcraft.login   # Delete for security
+#      HOW TO GET IT / COMMENT L'OBTENIR:
+#        $ sudo snap install snapcraft --classic
+#        $ snapcraft login
+#        $ snapcraft export-login snapcraft.login
+#        $ cat snapcraft.login  # Copy this content to GitHub secret
+#        $ rm snapcraft.login   # Delete for security
 #
-# 3. WORKFLOW PERMISSIONS (Settings > Actions > General > Workflow permissions)
-#    PERMISSIONS DU WORKFLOW
-#    Select "Read and write permissions" to allow updating variables
-#    Sélectionner "Read and write permissions" pour permettre la MAJ des variables
+#    - PAT_TOKEN : Fine-grained Personal Access Token to update repository variables
+#                  Token d'accès personnel fin pour mettre à jour les variables du dépôt
+#      HOW TO GET IT / COMMENT L'OBTENIR:
+#        GitHub > Settings > Developer settings > Personal access tokens > Fine-grained tokens
+#        Create token with "Variables" permission (Read and write) for this repo only
+#        Créer un token avec la permission "Variables" (Read and write) pour ce repo uniquement
 #
 # =============================================================================
 
@@ -445,7 +447,7 @@ jobs:
       - name: Update last built tag
         if: steps.check.outputs.should_build == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           gh variable set LAST_BUILT_TAG_AMD64 --body "${{ steps.check.outputs.tag_name }}"
           echo "✅ Updated LAST_BUILT_TAG_AMD64 to ${{ steps.check.outputs.tag_name }}"
@@ -551,7 +553,7 @@ jobs:
       - name: Update last built tag
         if: steps.check.outputs.should_build == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           gh variable set LAST_BUILT_TAG_ARM64 --body "${{ steps.check.outputs.tag_name }}"
           echo "✅ Updated LAST_BUILT_TAG_ARM64 to ${{ steps.check.outputs.tag_name }}"
