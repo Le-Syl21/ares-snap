@@ -501,6 +501,7 @@ parts:
     cmake-parameters:
       - -DCMAKE_INSTALL_PREFIX=/usr    # Install to /usr in the snap
       - -DCMAKE_BUILD_TYPE=Release     # Optimized release build
+      - -DCMAKE_PREFIX_PATH=$CRAFT_STAGE/usr  # Find staged deps (SDL3, librashader, shaders)
       - -DARES_SKIP_DEPS=ON            # Don't download deps, use ours
       - -DARES_BUILD_OFFICIAL=ON       # Enable official build flags
 
