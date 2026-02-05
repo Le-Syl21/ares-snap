@@ -334,81 +334,45 @@ jobs:
         run: sudo snap install snapcraft --classic
 
       # -----------------------------------------------------------------------
-      # STEP 5: Install build dependencies
-      # ÉTAPE 5: Installer les dépendances de build
+      # STEP 5: Setup LXD
+      # ÉTAPE 5: Configurer LXD
       # -----------------------------------------------------------------------
-      # In --destructive-mode, snapcraft cannot install packages itself because
-      # it doesn't run as root. We must pre-install all build-packages.
+      # LXD provides clean container environments for snapcraft builds.
+      # Snapcraft will automatically install all build-packages and build-snaps
+      # inside the container.
       #
-      # En mode --destructive-mode, snapcraft ne peut pas installer les paquets
-      # lui-même car il ne tourne pas en root. On doit pré-installer les build-packages.
+      # LXD fournit des environnements conteneur propres pour les builds snapcraft.
+      # Snapcraft installera automatiquement tous les build-packages et build-snaps
+      # dans le conteneur.
       # -----------------------------------------------------------------------
-      - name: Install build dependencies
+      - name: Setup LXD
         if: steps.check.outputs.should_build == 'true'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            clang \
-            cmake \
-            curl \
-            jq \
-            libao-dev \
-            libasound2-dev \
-            libgl-dev \
-            libgtk-3-dev \
-            libopenal-dev \
-            libpulse-dev \
-            libudev-dev \
-            pkg-config
+        uses: canonical/setup-lxd@main
 
       # -----------------------------------------------------------------------
-      # STEP 6: Install build snaps
-      # ÉTAPE 6: Installer les snaps de build
+      # STEP 6: Build the Snap package
+      # ÉTAPE 6: Construire le paquet Snap
       # -----------------------------------------------------------------------
-      # The gnome extension requires the gnome-46-2404 SDK snap.
-      # L'extension gnome nécessite le snap SDK gnome-46-2404.
-      # -----------------------------------------------------------------------
-      - name: Install build snaps
-        if: steps.check.outputs.should_build == 'true'
-        run: sudo snap install gnome-46-2404-sdk --channel=latest/stable
-
-      # -----------------------------------------------------------------------
-      # STEP 7: Build the Snap package
-      # ÉTAPE 7: Construire le paquet Snap
-      # -----------------------------------------------------------------------
-      # This is where the magic happens! Snapcraft reads snapcraft.yaml
-      # and builds the .snap file.
+      # Snapcraft builds the snap inside a clean LXD container, automatically
+      # installing all required build-packages and build-snaps.
       #
-      # C'est ici que la magie opère ! Snapcraft lit snapcraft.yaml
-      # et construit le fichier .snap.
-      #
-      # BUILD MODES / MODES DE BUILD:
-      #   snapcraft pack                    : Build in a clean LXD container (recommended)
-      #                                       Build dans un conteneur LXD propre (recommandé)
-      #   snapcraft pack --destructive-mode : Build directly on host (faster in CI)
-      #                                       Build directement sur l'hôte (plus rapide en CI)
-      #
-      # WHY --destructive-mode? / POURQUOI --destructive-mode ?
-      # In CI, the runner is ephemeral anyway, so we don't need container isolation.
-      # This is faster because it skips LXD setup.
-      # En CI, le runner est éphémère de toute façon, donc pas besoin d'isolation conteneur.
-      # C'est plus rapide car ça évite la config LXD.
+      # Snapcraft construit le snap dans un conteneur LXD propre, installant
+      # automatiquement tous les build-packages et build-snaps requis.
       # -----------------------------------------------------------------------
       - name: Build snap
         if: steps.check.outputs.should_build == 'true'
         id: build
         run: |
           cd ares-src
-          snapcraft pack --destructive-mode
+          snapcraft pack
 
           # Find the generated .snap file and export its name
           # Trouver le fichier .snap généré et exporter son nom
           echo "snap_file=$(ls *.snap)" >> $GITHUB_OUTPUT
 
       # -----------------------------------------------------------------------
-      # STEP 8: Upload build artifact
-      # ÉTAPE 8: Uploader l'artifact de build
+      # STEP 7: Upload build artifact
+      # ÉTAPE 7: Uploader l'artifact de build
       # -----------------------------------------------------------------------
       # Artifacts are files preserved after the workflow completes.
       # Les artifacts sont des fichiers préservés après la fin du workflow.
@@ -433,8 +397,8 @@ jobs:
           retention-days: 30
 
       # -----------------------------------------------------------------------
-      # STEP 9: Publish to Snap Store
-      # ÉTAPE 9: Publier sur le Snap Store
+      # STEP 8: Publish to Snap Store
+      # ÉTAPE 8: Publier sur le Snap Store
       # -----------------------------------------------------------------------
       # Uploads the .snap file to the Snap Store for distribution
       # Upload le fichier .snap sur le Snap Store pour distribution
@@ -463,8 +427,8 @@ jobs:
         continue-on-error: true
 
       # -----------------------------------------------------------------------
-      # STEP 10: Update version tracking variable
-      # ÉTAPE 10: Mettre à jour la variable de suivi de version
+      # STEP 9: Update version tracking variable
+      # ÉTAPE 9: Mettre à jour la variable de suivi de version
       # -----------------------------------------------------------------------
       # After successful build, update our tracking variable so we don't
       # rebuild the same version next time.
@@ -555,35 +519,16 @@ jobs:
         if: steps.check.outputs.should_build == 'true'
         run: sudo snap install snapcraft --classic
 
-      - name: Install build dependencies
+      - name: Setup LXD
         if: steps.check.outputs.should_build == 'true'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            clang \
-            cmake \
-            curl \
-            jq \
-            libao-dev \
-            libasound2-dev \
-            libgl-dev \
-            libgtk-3-dev \
-            libopenal-dev \
-            libpulse-dev \
-            libudev-dev \
-            pkg-config
-
-      - name: Install build snaps
-        if: steps.check.outputs.should_build == 'true'
-        run: sudo snap install gnome-46-2404-sdk --channel=latest/stable
+        uses: canonical/setup-lxd@main
 
       - name: Build snap
         if: steps.check.outputs.should_build == 'true'
         id: build
         run: |
           cd ares-src
-          snapcraft pack --destructive-mode
+          snapcraft pack
           echo "snap_file=$(ls *.snap)" >> $GITHUB_OUTPUT
 
       - name: Upload artifact
