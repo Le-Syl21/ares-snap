@@ -393,6 +393,8 @@ parts:
       DEPS_JSON="${CRAFT_PART_SRC}/deps.json"
       VERSION=$(jq -r '.version' "$DEPS_JSON")
       BASE_URL=$(jq -r '.baseUrl' "$DEPS_JSON")
+      SDL_VERSION=$(jq -r '.sdlVersion // "3.0.0"' "$DEPS_JSON")
+      LIBRASHADER_VERSION=$(jq -r '.librashaderVersion // "0.6.0"' "$DEPS_JSON")
 
       # ---------------------------------------------------------------------
       # Detect architecture and select platform
@@ -439,6 +441,7 @@ parts:
 
       # Create target directories / Crée les répertoires cibles
       mkdir -p $CRAFT_PART_INSTALL/usr/lib
+      mkdir -p $CRAFT_PART_INSTALL/usr/lib/pkgconfig
       mkdir -p $CRAFT_PART_INSTALL/usr/include
 
       # Copy libraries (with symlinks preserved via -P)
@@ -455,6 +458,41 @@ parts:
         cp -R ares-deps/share/* $CRAFT_PART_INSTALL/usr/share/
       fi
 
+      # -----------------------------------------------------------------
+      # Generate pkg-config files for prebuilt deps
+      # Génère les fichiers pkg-config pour les deps précompilées
+      # -----------------------------------------------------------------
+      # WHY? / POURQUOI ?
+      # CMake uses pkg-config to detect library versions. Without .pc files,
+      # the finders report version "0.0.0" and emit warnings.
+      # CMake utilise pkg-config pour détecter les versions. Sans fichiers .pc,
+      # les finders reportent la version "0.0.0" et émettent des warnings.
+      # -----------------------------------------------------------------
+
+      cat > $CRAFT_PART_INSTALL/usr/lib/pkgconfig/sdl3.pc << EOF
+      prefix=/usr
+      libdir=\${prefix}/lib
+      includedir=\${prefix}/include
+      Name: sdl3
+      Description: SDL3 (prebuilt for ares-snap)
+      Version: ${SDL_VERSION}
+      Libs: -L\${libdir} -lSDL3
+      Cflags: -I\${includedir}/SDL3
+      EOF
+      sed -i 's/^      //' $CRAFT_PART_INSTALL/usr/lib/pkgconfig/sdl3.pc
+
+      cat > $CRAFT_PART_INSTALL/usr/lib/pkgconfig/librashader.pc << EOF
+      prefix=/usr
+      libdir=\${prefix}/lib
+      includedir=\${prefix}/include
+      Name: librashader
+      Description: librashader (prebuilt for ares-snap)
+      Version: ${LIBRASHADER_VERSION}
+      Libs: -L\${libdir} -lrashader
+      Cflags: -I\${includedir}
+      EOF
+      sed -i 's/^      //' $CRAFT_PART_INSTALL/usr/lib/pkgconfig/librashader.pc
+
     # STAGE FILTER / FILTRE DE STAGING
     # ---------------------------------
     # Controls which files are copied from $CRAFT_PART_INSTALL to the staging area.
@@ -464,9 +502,10 @@ parts:
     #   - "usr/lib"     : Include this directory / Inclure ce répertoire
     #   - "-usr/lib/X"  : Exclude this (prefix with -) / Exclure ceci (préfixer avec -)
     stage:
-      - usr/lib/*.so*   # Shared libraries / Bibliothèques partagées
-      - usr/include     # Headers for next parts / Headers pour les parts suivantes
-      - usr/share       # Shader presets / Presets de shaders
+      - usr/lib/*.so*       # Shared libraries / Bibliothèques partagées
+      - usr/lib/pkgconfig   # Version metadata for CMake / Métadonnées de version pour CMake
+      - usr/include         # Headers for next parts / Headers pour les parts suivantes
+      - usr/share           # Shader presets / Presets de shaders
 
   # ===========================================================================
   # PART 2: ares - Main emulator build
@@ -498,12 +537,58 @@ parts:
     # Options passées à cmake pendant la configuration.
     #
     # Equivalent to: cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release ...
+    #
+    # NOTE on -Wno-dev:
+    # Suppresses CMake developer warnings from custom finders that can't
+    # parse version info from prebuilt deps. These are harmless.
+    #
+    # NOTE sur -Wno-dev:
+    # Supprime les warnings développeur CMake des finders personnalisés qui ne
+    # peuvent pas parser les infos de version des deps précompilées. Ils sont inoffensifs.
     cmake-parameters:
-      - -DCMAKE_INSTALL_PREFIX=/usr    # Install to /usr in the snap
-      - -DCMAKE_BUILD_TYPE=Release     # Optimized release build
-      - -DCMAKE_PREFIX_PATH=$CRAFT_STAGE/usr  # Find staged deps (SDL3, librashader, shaders)
-      - -DARES_SKIP_DEPS=ON            # Don't download deps, use ours
-      - -DARES_BUILD_OFFICIAL=ON       # Enable official build flags
+      - -DCMAKE_INSTALL_PREFIX=/usr
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_PREFIX_PATH=$CRAFT_STAGE/usr
+      - -DARES_SKIP_DEPS=ON
+      - -DARES_BUILD_OFFICIAL=ON
+      - -Wno-dev
+
+    # OVERRIDE-BUILD / SURCHARGE DE BUILD
+    # ------------------------------------
+    # We override the build step to inject the snap version into the CMake build.
+    # On surcharge l'étape de build pour injecter la version snap dans le build CMake.
+    #
+    # WHY? / POURQUOI ?
+    # The version field in snapcraft.yaml is replaced by CI (e.g., "147"),
+    # but CMake doesn't know about it. Without this, ares reports "0.0.0"
+    # in its title bar and about dialog.
+    #
+    # Le champ version dans snapcraft.yaml est remplacé par le CI (ex: "147"),
+    # mais CMake ne le connaît pas. Sans ça, ares affiche "0.0.0" dans sa
+    # barre de titre et son dialogue à propos.
+    #
+    # "craftctl default" runs the standard cmake build with all parameters above.
+    # "craftctl default" exécute le build cmake standard avec tous les paramètres ci-dessus.
+    override-build: |
+      # Read version from snapcraft.yaml (set by CI via sed)
+      # Lit la version depuis snapcraft.yaml (définie par le CI via sed)
+      SNAP_VERSION=$(craftctl get version)
+
+      # Inject version into CMake parameters
+      # Injecte la version dans les paramètres CMake
+      export ARES_VERSION="$SNAP_VERSION"
+      cmake ${CRAFT_PART_SRC} \
+        -G 'Unix Makefiles' \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_PREFIX_PATH=${CRAFT_STAGE}/usr \
+        -DARES_SKIP_DEPS=ON \
+        -DARES_BUILD_OFFICIAL=ON \
+        -DARES_VERSION="${SNAP_VERSION}" \
+        -Wno-dev
+
+      cmake --build . -j${CRAFT_PARALLEL_BUILD_COUNT}
+      DESTDIR=${CRAFT_PART_INSTALL} cmake --install .
 
     # BUILD PACKAGES / PAQUETS DE BUILD
     # ----------------------------------
