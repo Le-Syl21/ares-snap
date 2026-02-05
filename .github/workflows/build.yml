@@ -334,8 +334,37 @@ jobs:
         run: sudo snap install snapcraft --classic
 
       # -----------------------------------------------------------------------
-      # STEP 5: Build the Snap package
-      # ÉTAPE 5: Construire le paquet Snap
+      # STEP 5: Install build dependencies
+      # ÉTAPE 5: Installer les dépendances de build
+      # -----------------------------------------------------------------------
+      # In --destructive-mode, snapcraft cannot install packages itself because
+      # it doesn't run as root. We must pre-install all build-packages.
+      #
+      # En mode --destructive-mode, snapcraft ne peut pas installer les paquets
+      # lui-même car il ne tourne pas en root. On doit pré-installer les build-packages.
+      # -----------------------------------------------------------------------
+      - name: Install build dependencies
+        if: steps.check.outputs.should_build == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            clang \
+            cmake \
+            curl \
+            jq \
+            libao-dev \
+            libasound2-dev \
+            libgl-dev \
+            libgtk-3-dev \
+            libopenal-dev \
+            libpulse-dev \
+            libudev-dev \
+            pkg-config
+
+      # -----------------------------------------------------------------------
+      # STEP 6: Build the Snap package
+      # ÉTAPE 6: Construire le paquet Snap
       # -----------------------------------------------------------------------
       # This is where the magic happens! Snapcraft reads snapcraft.yaml
       # and builds the .snap file.
@@ -367,8 +396,8 @@ jobs:
           echo "snap_file=$(ls *.snap)" >> $GITHUB_OUTPUT
 
       # -----------------------------------------------------------------------
-      # STEP 6: Upload build artifact
-      # ÉTAPE 6: Uploader l'artifact de build
+      # STEP 7: Upload build artifact
+      # ÉTAPE 7: Uploader l'artifact de build
       # -----------------------------------------------------------------------
       # Artifacts are files preserved after the workflow completes.
       # Les artifacts sont des fichiers préservés après la fin du workflow.
@@ -393,8 +422,8 @@ jobs:
           retention-days: 30
 
       # -----------------------------------------------------------------------
-      # STEP 7: Publish to Snap Store
-      # ÉTAPE 7: Publier sur le Snap Store
+      # STEP 8: Publish to Snap Store
+      # ÉTAPE 8: Publier sur le Snap Store
       # -----------------------------------------------------------------------
       # Uploads the .snap file to the Snap Store for distribution
       # Upload le fichier .snap sur le Snap Store pour distribution
@@ -423,8 +452,8 @@ jobs:
         continue-on-error: true
 
       # -----------------------------------------------------------------------
-      # STEP 8: Update version tracking variable
-      # ÉTAPE 8: Mettre à jour la variable de suivi de version
+      # STEP 9: Update version tracking variable
+      # ÉTAPE 9: Mettre à jour la variable de suivi de version
       # -----------------------------------------------------------------------
       # After successful build, update our tracking variable so we don't
       # rebuild the same version next time.
@@ -514,6 +543,25 @@ jobs:
       - name: Install snapcraft
         if: steps.check.outputs.should_build == 'true'
         run: sudo snap install snapcraft --classic
+
+      - name: Install build dependencies
+        if: steps.check.outputs.should_build == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            clang \
+            cmake \
+            curl \
+            jq \
+            libao-dev \
+            libasound2-dev \
+            libgl-dev \
+            libgtk-3-dev \
+            libopenal-dev \
+            libpulse-dev \
+            libudev-dev \
+            pkg-config
 
       - name: Build snap
         if: steps.check.outputs.should_build == 'true'
