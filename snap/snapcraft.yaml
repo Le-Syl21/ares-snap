@@ -234,11 +234,10 @@ apps:
       # Empêche GTK_MODULES de l'hôte de fuiter dans le snap
       # (supprime "Failed to load module xapp-gtk3-module")
       GTK_MODULES: ""
-      # Prevent GIO from loading missing proxy module
-      # (suppresses libpxbackend/libgiolibproxy errors)
-      # Empêche GIO de charger le module proxy manquant
-      # (supprime les erreurs libpxbackend/libgiolibproxy)
-      GIO_EXTRA_MODULES: ""
+      # Add libproxy backend path so libpxbackend-1.0.so can be found
+      # (see: https://forum.snapcraft.io/t/44263)
+      # Ajoute le chemin du backend libproxy pour trouver libpxbackend-1.0.so
+      LD_LIBRARY_PATH: $LD_LIBRARY_PATH:$SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libproxy
 
     # -------------------------------------------------------------------------
     # PLUGS (PERMISSIONS) / PLUGS (PERMISSIONS)
@@ -650,10 +649,8 @@ parts:
       - libopenal1        # OpenAL 3D audio runtime
       - libpulse0         # PulseAudio client
       - libvulkan1        # Vulkan runtime (for librashader)
-      # NOTE: libxapp-gtk3-module was removed - it's a Linux Mint/Cinnamon
-      # module that isn't needed and causes "Failed to load module" warnings.
-      # NOTE: libxapp-gtk3-module a été retiré - c'est un module Linux Mint/Cinnamon
-      # qui n'est pas nécessaire et cause des warnings "Failed to load module".
+      - libproxy1v5       # Proxy support (provides libpxbackend-1.0.so for GIO)
+                          # Support proxy (fournit libpxbackend-1.0.so pour GIO)
 
     # OVERRIDE-PRIME / SURCHARGE DE PRIME
     # ------------------------------------
