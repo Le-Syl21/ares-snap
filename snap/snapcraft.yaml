@@ -397,8 +397,8 @@ parts:
       DEPS_JSON="${CRAFT_PART_SRC}/deps.json"
       VERSION=$(jq -r '.version' "$DEPS_JSON")
       BASE_URL=$(jq -r '.baseUrl' "$DEPS_JSON")
-      SDL_VERSION=$(jq -r '.sdlVersion // "3.0.0"' "$DEPS_JSON")
-      LIBRASHADER_VERSION=$(jq -r '.librashaderVersion // "0.6.0"' "$DEPS_JSON")
+      SDL_VERSION=$(jq -r '.dependencies.sdl.version' "$DEPS_JSON")
+      LIBRASHADER_VERSION=$(jq -r '.dependencies.librashader.version' "$DEPS_JSON")
 
       # ---------------------------------------------------------------------
       # Detect architecture and select platform

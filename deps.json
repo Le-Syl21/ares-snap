@@ -1,8 +1,17 @@
 {
-  "version": "2026-02-05",
+  "version": "2025.02.06",
   "baseUrl": "https://github.com/Le-Syl21/ares-deps/releases/download",
+  "dependencies": {
+    "sdl": { "version": "3.4.0", "tag": "release-3.4.0", "url": "https://github.com/libsdl-org/SDL" },
+    "librashader": { "version": "0.9.1", "tag": "librashader-v0.9.1", "url": "https://github.com/SnowflakePowered/librashader" },
+    "slang-shaders": { "version": "1.0", "commit": "46dcd51d14efd2d49505d932d6b979f141f538d8", "url": "https://github.com/libretro/slang-shaders" },
+    "moltenvk": { "version": "1.4.1", "tag": "v1.4.1", "url": "https://github.com/KhronosGroup/MoltenVK" }
+  },
   "hashes": {
-    "linux-x64": "5fc1a3056614d0f594522f0accea8f0530becd436d40e913289ed3c1268c454e",
-    "linux-arm64": "0598c0ab9ba7882bb0514c20f0dd7d752128af96ffb79e27831f9d7bdfcc4e4f"
+    "linux-x64": "ab99ea787c63ffc20e46734ff1f85e9078da8c6a0d51e7a4e624012efe497b12",
+    "linux-arm64": "7d39c5c7ecb7352be3f955f451fa9b613b3ed191fc7e8f5e577078c13adf1f1a",
+    "macos-universal": "ca68d0ddfb3959d8b99acbe0cc51d9b690afcefd5f28157a6c830dc2379c9a6b",
+    "windows-x64": "b66f139e46321b825a2b79b90e0088e7a265d71d02d2444017acc4bc8743bda3",
+    "windows-arm64": "8b275f400daeea4ecf535f31a30704fc30779bb85424707b5b33fbc5f5175547"
   }
 }
