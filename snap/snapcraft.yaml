@@ -229,11 +229,6 @@ apps:
     # -------------------------------------------------------------------------
     environment:
       NO_AT_BRIDGE: "1"
-      # Prevent host GTK_MODULES from leaking into the snap
-      # (suppresses "Failed to load module xapp-gtk3-module")
-      # Empêche GTK_MODULES de l'hôte de fuiter dans le snap
-      # (supprime "Failed to load module xapp-gtk3-module")
-      GTK_MODULES: ""
       # Add libproxy backend path so libpxbackend-1.0.so can be found
       # (see: https://forum.snapcraft.io/t/44263)
       # Ajoute le chemin du backend libproxy pour trouver libpxbackend-1.0.so
@@ -651,6 +646,8 @@ parts:
       - libvulkan1        # Vulkan runtime (for librashader)
       - libproxy1v5       # Proxy support (provides libpxbackend-1.0.so for GIO)
                           # Support proxy (fournit libpxbackend-1.0.so pour GIO)
+      - libxapp-gtk3-module  # Loaded by host XSettings, must be in snap to avoid warning
+                              # Chargé par les XSettings de l'hôte, doit être dans le snap
 
     # OVERRIDE-PRIME / SURCHARGE DE PRIME
     # ------------------------------------
