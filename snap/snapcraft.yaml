@@ -229,6 +229,16 @@ apps:
     # -------------------------------------------------------------------------
     environment:
       NO_AT_BRIDGE: "1"
+      # Prevent host GTK_MODULES from leaking into the snap
+      # (suppresses "Failed to load module xapp-gtk3-module")
+      # Empêche GTK_MODULES de l'hôte de fuiter dans le snap
+      # (supprime "Failed to load module xapp-gtk3-module")
+      GTK_MODULES: ""
+      # Prevent GIO from loading missing proxy module
+      # (suppresses libpxbackend/libgiolibproxy errors)
+      # Empêche GIO de charger le module proxy manquant
+      # (supprime les erreurs libpxbackend/libgiolibproxy)
+      GIO_EXTRA_MODULES: ""
 
     # -------------------------------------------------------------------------
     # PLUGS (PERMISSIONS) / PLUGS (PERMISSIONS)
@@ -574,9 +584,19 @@ parts:
       # Lit la version depuis snapcraft.yaml (définie par le CI via sed)
       SNAP_VERSION=$(craftctl get version)
 
-      # Inject version into CMake parameters
-      # Injecte la version dans les paramètres CMake
-      export ARES_VERSION="$SNAP_VERSION"
+      # Inject version into CMake via ARES_VERSION_OVERRIDE
+      # Injecte la version dans CMake via ARES_VERSION_OVERRIDE
+      #
+      # WHY ARES_VERSION_OVERRIDE? / POURQUOI ARES_VERSION_OVERRIDE ?
+      # Ares's versionconfig.cmake checks this variable FIRST, before
+      # trying git describe or .archive-version.json. Passing -DARES_VERSION
+      # directly doesn't work because the CMake code overwrites it internally.
+      # The "v" prefix is required to match the expected tag format (e.g. "v147").
+      #
+      # Le versionconfig.cmake d'ares vérifie cette variable EN PREMIER, avant
+      # d'essayer git describe ou .archive-version.json. Passer -DARES_VERSION
+      # directement ne fonctionne pas car le code CMake l'écrase en interne.
+      # Le préfixe "v" est requis pour correspondre au format attendu (ex: "v147").
       cmake ${CRAFT_PART_SRC} \
         -G 'Unix Makefiles' \
         -DCMAKE_INSTALL_PREFIX=/usr \
@@ -584,7 +604,7 @@ parts:
         -DCMAKE_PREFIX_PATH=${CRAFT_STAGE}/usr \
         -DARES_SKIP_DEPS=ON \
         -DARES_BUILD_OFFICIAL=ON \
-        -DARES_VERSION="${SNAP_VERSION}" \
+        -DARES_VERSION_OVERRIDE="v${SNAP_VERSION}" \
         -Wno-dev
 
       cmake --build . -j${CRAFT_PARALLEL_BUILD_COUNT}
@@ -630,7 +650,10 @@ parts:
       - libopenal1        # OpenAL 3D audio runtime
       - libpulse0         # PulseAudio client
       - libvulkan1        # Vulkan runtime (for librashader)
-      - libxapp-gtk3-module  # Better GTK desktop integration
+      # NOTE: libxapp-gtk3-module was removed - it's a Linux Mint/Cinnamon
+      # module that isn't needed and causes "Failed to load module" warnings.
+      # NOTE: libxapp-gtk3-module a été retiré - c'est un module Linux Mint/Cinnamon
+      # qui n'est pas nécessaire et cause des warnings "Failed to load module".
 
     # OVERRIDE-PRIME / SURCHARGE DE PRIME
     # ------------------------------------
