@@ -8,10 +8,10 @@
     "moltenvk": { "version": "1.4.1", "tag": "v1.4.1", "url": "https://github.com/KhronosGroup/MoltenVK" }
   },
   "hashes": {
-    "linux-x64": "d6b33d9b6be2e2f9192a394a6f2823d2ab1b1624b1a3500f956d60decc7a28aa",
-    "linux-arm64": "c8a1524be12f959ae8d8f724c70e1f84f83eacdfedc294ea8397bf17ec3da11b",
-    "macos-universal": "09ebf13046da700bb2d7e004f9e203f2685d3c32e08a47abeb61959b79cb1bf2",
-    "windows-x64": "b531bd32e46741acebfc83673703298b3068fdf0f5ae2bc14a42ae9c442d6025",
-    "windows-arm64": "c1154b0d7fdb7b981df6d6851c89a5e83129cddd69c4bfcfa09910c903375107"
+    "linux-x64": "2d3dcc0d077f29ab6f9d6ca967ad82de10afd2e2427e80d70201a60eaf54708d",
+    "linux-arm64": "4900dbee0eb7ccc9fd2bb260a6375ace18d89c68ec5b90fd9308759934e53053",
+    "macos-universal": "6fcf0ed01d4eb9e464623628d8015f38307ecb285f028d169fae6eb69e020762",
+    "windows-x64": "f0ceba8bb3d524aba1e3bc8b58eee5d7e52efc1299da886abe7b200f3bcb5be8",
+    "windows-arm64": "29cc0774a3a622c7c0b2d42f38115f1bae45580df51de6dc836268c927f6de56"
   }
 }
