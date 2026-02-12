@@ -1,5 +1,5 @@
 {
-  "version": "2025.02.06",
+  "version": "2026.02.12",
   "baseUrl": "https://github.com/Le-Syl21/ares-deps/releases/download",
   "dependencies": {
     "sdl": { "version": "3.4.0", "tag": "release-3.4.0", "url": "https://github.com/libsdl-org/SDL" },
@@ -8,10 +8,10 @@
     "moltenvk": { "version": "1.4.1", "tag": "v1.4.1", "url": "https://github.com/KhronosGroup/MoltenVK" }
   },
   "hashes": {
-    "linux-x64": "ab99ea787c63ffc20e46734ff1f85e9078da8c6a0d51e7a4e624012efe497b12",
-    "linux-arm64": "7d39c5c7ecb7352be3f955f451fa9b613b3ed191fc7e8f5e577078c13adf1f1a",
-    "macos-universal": "ca68d0ddfb3959d8b99acbe0cc51d9b690afcefd5f28157a6c830dc2379c9a6b",
-    "windows-x64": "b66f139e46321b825a2b79b90e0088e7a265d71d02d2444017acc4bc8743bda3",
-    "windows-arm64": "8b275f400daeea4ecf535f31a30704fc30779bb85424707b5b33fbc5f5175547"
+    "linux-x64": "d6b33d9b6be2e2f9192a394a6f2823d2ab1b1624b1a3500f956d60decc7a28aa",
+    "linux-arm64": "c8a1524be12f959ae8d8f724c70e1f84f83eacdfedc294ea8397bf17ec3da11b",
+    "macos-universal": "09ebf13046da700bb2d7e004f9e203f2685d3c32e08a47abeb61959b79cb1bf2",
+    "windows-x64": "b531bd32e46741acebfc83673703298b3068fdf0f5ae2bc14a42ae9c442d6025",
+    "windows-arm64": "c1154b0d7fdb7b981df6d6851c89a5e83129cddd69c4bfcfa09910c903375107"
   }
 }
