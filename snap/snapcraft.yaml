@@ -123,6 +123,7 @@ description: |
 #   - MIT, GPL-3.0, Apache-2.0, ISC, BSD-3-Clause, Proprietary
 # Full list / Liste complète: https://spdx.org/licenses/
 license: ISC
+icon: snap/gui/icon.png
 
 # LINKS / LIENS
 # -------------
@@ -180,9 +181,9 @@ confinement: strict
 apps:
   # APP NAME / NOM DE L'APP
   # -----------------------
-  # If app name matches snap name, users can just type "ares" instead of "ares.ares"
-  # Si le nom de l'app correspond au nom du snap, les utilisateurs tapent juste "ares"
-  ares:
+  # If app name matches snap name, users can just type "ares-emu" instead of "ares-emu.ares"
+  # Si le nom de l'app correspond au nom du snap, les utilisateurs tapent juste "ares-emu"
+  ares-emu:
     # COMMAND / COMMANDE
     # ------------------
     # Path to the executable inside the snap, relative to $SNAP
@@ -678,7 +679,7 @@ parts:
 
       # Copy application icon / Copie l'icône de l'application
       cp $CRAFT_PRIME/usr/share/icons/hicolor/256x256/apps/ares.png \
-         $CRAFT_PRIME/meta/gui/ares.png
+         $CRAFT_PRIME/meta/gui/ares-emu.png
 
       # ---------------------------------------------------------------------
       # Generate .desktop file
@@ -690,12 +691,12 @@ parts:
       # Le fichier .desktop suit la spécification freedesktop.org:
       # https://specifications.freedesktop.org/desktop-entry-spec/latest/
       # ---------------------------------------------------------------------
-      cat > $CRAFT_PRIME/meta/gui/ares.desktop << 'EOF'
+      cat > $CRAFT_PRIME/meta/gui/ares-emu.desktop << 'EOF'
       [Desktop Entry]
       Name=ares
       Comment=Multi-system emulator focusing on accuracy and preservation
-      Exec=ares
-      Icon=${SNAP}/meta/gui/ares.png
+      Exec=ares-emu
+      Icon=${SNAP}/meta/gui/ares-emu.png
       Terminal=false
       Type=Application
       Categories=Game;Emulator;
@@ -703,4 +704,4 @@ parts:
       EOF
 
       # Remove leading spaces from heredoc / Supprime les espaces du heredoc
-      sed -i 's/^      //' $CRAFT_PRIME/meta/gui/ares.desktop
+      sed -i 's/^      //' $CRAFT_PRIME/meta/gui/ares-emu.desktop
