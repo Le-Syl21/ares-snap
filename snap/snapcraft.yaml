@@ -51,7 +51,7 @@
 #   - Must be unique in the Snap Store / Doit être unique dans le Snap Store
 #   - Register at: https://snapcraft.io/register
 #     Enregistrer sur: https://snapcraft.io/register
-name: ares
+name: ares-emul
 
 # BASE SNAP / SNAP DE BASE
 # ------------------------
@@ -89,7 +89,7 @@ version: '0'
 # -------------
 # Human-readable name shown in the Snap Store (can have spaces, capitals).
 # Nom lisible affiché dans le Snap Store (peut avoir espaces, majuscules).
-title: ares-emu
+title: ares
 
 # SUMMARY / RÉSUMÉ
 # ----------------
