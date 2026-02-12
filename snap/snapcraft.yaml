@@ -89,7 +89,7 @@ version: '0'
 # -------------
 # Human-readable name shown in the Snap Store (can have spaces, capitals).
 # Nom lisible affiché dans le Snap Store (peut avoir espaces, majuscules).
-title: ares
+title: ares-emu
 
 # SUMMARY / RÉSUMÉ
 # ----------------
