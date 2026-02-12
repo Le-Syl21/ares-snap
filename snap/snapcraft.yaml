@@ -673,6 +673,13 @@ parts:
       # bonne intégration desktop (menu apps, barre des tâches, associations, etc.)
       # ---------------------------------------------------------------------
 
+      # Flatten shaders: move contents of shaders_slang/ up to Shaders/
+      # CMake install(DIRECTORY) copies the folder itself, creating an extra level
+      if [ -d "$CRAFT_PRIME/usr/share/ares/Shaders/shaders_slang" ]; then
+        cp -R $CRAFT_PRIME/usr/share/ares/Shaders/shaders_slang/. $CRAFT_PRIME/usr/share/ares/Shaders/
+        rm -rf $CRAFT_PRIME/usr/share/ares/Shaders/shaders_slang
+      fi
+
       # Create meta/gui directory (required for desktop files)
       # Crée le répertoire meta/gui (requis pour les fichiers desktop)
       mkdir -p $CRAFT_PRIME/meta/gui
