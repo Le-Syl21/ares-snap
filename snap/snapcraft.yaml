@@ -51,7 +51,7 @@
 #   - Must be unique in the Snap Store / Doit être unique dans le Snap Store
 #   - Register at: https://snapcraft.io/register
 #     Enregistrer sur: https://snapcraft.io/register
-name: ares-emul
+name: ares-emu
 
 # BASE SNAP / SNAP DE BASE
 # ------------------------
